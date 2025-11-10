@@ -7,8 +7,10 @@
 
       <div class="left-content">
         <h1>Inicio</h1>
-        <p>Sistema de Gestión<br>de Clubs Estudiantiles</p>
-        <a href="CrearCuenta.html" class="btn-create">Crear Cuenta</a>
+        <p>Sistema de Gestión<br />de Clubs Estudiantiles</p>
+        <a @click.prevent="$router.push('/crear-cuenta')" class="btn-create"
+          >Crear Cuenta</a
+        >
       </div>
     </div>
 
@@ -29,7 +31,9 @@
       </div>
 
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-      <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+      <div v-if="successMessage" class="success-message">
+        {{ successMessage }}
+      </div>
 
       <form @submit.prevent="handleLogin">
         <div class="user-type-selector">
@@ -53,8 +57,18 @@
 
         <div class="form-group">
           <div class="input-container">
-            <input v-model="usuario" type="text" placeholder="Usuario" required />
-            <svg class="input-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <input
+              class="user-input"
+              v-model="usuario"
+              type="text"
+              placeholder="Usuario"
+              required
+            />
+            <svg
+              class="input-icon"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
               <path
                 d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 
                 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 
@@ -66,8 +80,18 @@
 
         <div class="form-group">
           <div class="input-container">
-            <input v-model="password" type="password" placeholder="Contraseña" required />
-            <svg class="input-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <input
+              class="user-input"
+              v-model="password"
+              type="password"
+              placeholder="Contraseña"
+              required
+            />
+            <svg
+              class="input-icon"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
               <path
                 d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 
                 3.24 7 6v2H6c-1.1 0-2 .9-2 
@@ -84,7 +108,15 @@
         </div>
 
         <div class="forgot-password">
-          <a href="#" @click.prevent="showMessage('error', 'Contacta al administrador para recuperar tu contraseña')">
+          <a
+            href="#"
+            @click.prevent="
+              showMessage(
+                'error',
+                'Contacta al administrador para recuperar tu contraseña'
+              )
+            "
+          >
             ¿Olvidó su contraseña?
           </a>
         </div>
@@ -125,9 +157,9 @@ export default {
     handleLogin() {
       if (this.usuario && this.password) {
         if (this.selectedUserType === "oficina") {
-          window.location.href = "Oficina.html";
-        } else {
-          window.location.href = "Monitor.html";
+          this.$router.push("/oficina");
+        } else if (this.selectedUserType === "monitor") {
+          this.$router.push("/monitor");
         }
       } else {
         this.showMessage("error", "Por favor, completa todos los campos");
@@ -137,22 +169,22 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  height: 100%;
-  width: 100%;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #1a1a2e;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+html,
+body,
+#app {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
+  background: #1a1a2e;
 }
 
 /* === CONTENEDOR PRINCIPAL REDUCIDO, CENTRADO Y CON SOMBRA === */
@@ -199,8 +231,13 @@ html, body {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0) rotate(45deg); }
-  50% { transform: translateY(-20px) rotate(45deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(45deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(45deg);
+  }
 }
 
 .shape-1 {
@@ -437,4 +474,7 @@ html, body {
   }
 }
 
+.user-input {
+  color: #27408b;
+}
 </style>
