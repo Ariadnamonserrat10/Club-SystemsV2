@@ -154,15 +154,35 @@ export default {
         this.successMessage = "";
       }, 5000);
     },
-    handleLogin() {
-      if (this.usuario && this.password) {
-        if (this.selectedUserType === "oficina") {
-          this.$router.push("/oficina");
-        } else if (this.selectedUserType === "monitor") {
-          this.$router.push("/monitor");
-        }
-      } else {
+    async handleLogin() {
+      this.errorMessage = "";
+      if (!this.usuario || !this.password) {
         this.showMessage("error", "Por favor, completa todos los campos");
+        return;
+      }
+      try {
+        const res = await fetch('http://localhost/Backend/Login.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: this.usuario, password: this.password })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.error || data.success === false) {
+          const msg = data?.error || 'Usuario o contraseña incorrectos';
+          this.showMessage('error', msg);
+          return;
+        }
+        const tipo = (data.usuario?.tipo || '').toUpperCase();
+        if (tipo === 'OFICINA') {
+          this.$router.push('/oficina');
+        } else if (tipo === 'MONITOR') {
+          this.$router.push('/monitor');
+        } else {
+          this.showMessage('error', 'Tipo de usuario inválido en respuesta');
+        }
+      } catch (e) {
+        console.error(e);
+        this.showMessage('error', 'No fue posible conectar al servidor');
       }
     },
   },
