@@ -17,8 +17,8 @@ export default {
   data() {
     return {
       clubs: [
-        { nombre: "Club de Robótica", descripcion: "Innovación y tecnología", cupo: 20, ocupados: 15 },
-        { nombre: "Club de Arte", descripcion: "Creatividad y expresión", cupo: 15, ocupados: 10 },
+        { id: 1, nombre: "Club de Robótica", descripcion: "Innovación y tecnología", cupo: 20, ocupados: 15 },
+        { id: 2, nombre: "Club de Arte", descripcion: "Creatividad y expresión", cupo: 15, ocupados: 10 },
       ],
       alumnos: [
         {

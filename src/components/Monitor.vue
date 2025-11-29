@@ -3,16 +3,21 @@
     <!-- PERFIL DEL MONITOR -->
     <div class="card shadow-sm p-3 mb-3 bg-white d-flex flex-row align-items-center">
       <img
-        src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        :src="usuarioActual.foto || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'"
         alt="Foto del monitor"
         class="rounded-circle me-3"
         width="80"
         height="80"
+        style="object-fit: cover;"
       />
       <div>
         <h4 class="text-primary mb-2">Registro de Asistencias</h4>
-        <p><strong>Usuario:</strong> {{ monitor.nombre }}</p>
-        <p><strong>Club asignado:</strong> {{ monitor.club }}</p>
+        <p><strong>Usuario:</strong> {{ usuarioActual.nombre }} {{ usuarioActual.apellidoP }}</p>
+        <p>
+          <strong>Club asignado:</strong>
+          <span v-if="usuarioActual.club_nombre">{{ usuarioActual.club_nombre }}</span>
+          <span v-else>- Ninguno -</span>
+        </p>
       </div>
       <div class="ms-auto">
         <button class="btn btn-outline-danger btn-sm" @click="cerrarSesion">
@@ -99,12 +104,25 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "Monitor",
   props: ["clubs", "alumnos", "fechas"],
   data() {
     return {
-      monitor: { nombre: "Carlos Pérez", club: "Club de Robótica" },
+      usuarioActual: {
+        nombre: "",
+        apellidoP: "",
+        tipo: "",
+        foto: "https://cdn-icons-png.flaticon.com/512/847/847969.png", // fallback
+        club_asignado: null,
+        club_nombre: null,
+      },
+      monitor: { nombre: "Carlos Pérez", club: "Club de Robótica" }, // se reemplazará si BD trae club
+      clubsList: [],          // lista de clubs desde BD
+      selectedClubId: null,   // id seleccionado en el dropdown
+      assigning: false,       // flag al asignar
       nuevaFecha: "",
       mensaje: { texto: "", tipo: "" },
     };
@@ -124,6 +142,46 @@ export default {
     },
   },
   methods: {
+    async cargarUsuarioActual() {
+      try {
+        const usuarioId = sessionStorage.getItem("usuarioId");
+        if (!usuarioId) return;
+
+        const response = await axios.get(
+          `http://localhost/Backend/obtenerUsuario.php?id=${usuarioId}`
+        );
+
+        if (response.data?.status === "success") {
+          const datos = response.data.data;
+          this.usuarioActual.nombre = datos.nombre || "";
+          this.usuarioActual.apellidoP = datos.apellidoP || "";
+          this.usuarioActual.tipo = datos.tipo || sessionStorage.getItem("usuarioTipo") || "";
+          this.usuarioActual.foto = datos.foto || this.usuarioActual.foto;
+          this.usuarioActual.club_asignado = datos.club_asignado ?? null;
+          this.usuarioActual.club_nombre = datos.club_nombre ?? null;
+          this.selectedClubId = this.usuarioActual.club_asignado;
+
+          // Si la BD devuelve el club asignado al monitor, opcionalmente actualizarlo
+          if (datos.club_nombre) this.monitor.club = datos.club_nombre;
+        }
+      } catch (error) {
+        console.error("Error cargando usuario Monitor:", error);
+      }
+    },
+
+    async cargarClubs() {
+      try {
+        const res = await axios.get("http://localhost/Backend/getClubs.php");
+        if (res.data?.status === "success" && Array.isArray(res.data.data)) {
+          this.clubsList = res.data.data;
+        } else {
+          console.warn("No se obtuvieron clubs:", res.data);
+        }
+      } catch (err) {
+        console.error("Error cargando lista de clubs:", err);
+      }
+    },
+
     mostrarMensaje(texto, tipo) {
       this.mensaje.texto = texto;
       this.mensaje.tipo = tipo;
@@ -133,7 +191,7 @@ export default {
       this.mostrarMensaje("Sesión cerrada correctamente.", "alert-info");
       // pequeño retardo para mostrar el mensaje antes de redirigir
       setTimeout(() => {
-        localStorage.clear();
+        sessionStorage.clear();
         this.$router.push("/"); // regresar al login
       }, 1500);
     },
@@ -175,6 +233,39 @@ export default {
         this.mostrarMensaje("Error al guardar los datos.", "alert-danger");
       }
     },
+    async asignarClub() {
+      if (!this.selectedClubId) return;
+      this.assigning = true;
+      try {
+        const usuarioId = sessionStorage.getItem("usuarioId");
+        const payload = { usuarioId: Number(usuarioId), club_id: Number(this.selectedClubId) };
+        const res = await axios.post("http://localhost/Backend/asignarClub.php", payload, {
+          headers: { "Content-Type": "application/json" }
+        });
+
+        if (res.data?.status === "success") {
+          // actualizar vista local
+          const club = this.clubsList.find(c => c.id === Number(this.selectedClubId));
+          this.usuarioActual.club_asignado = club ? club.id : this.selectedClubId;
+          this.usuarioActual.club_nombre = club ? club.nombre : `Club ID ${this.selectedClubId}`;
+          this.monitor.club = this.usuarioActual.club_nombre;
+          this.mensaje = { texto: "Club asignado correctamente.", tipo: "success" };
+        } else {
+          this.mensaje = { texto: res.data.message || "Error al asignar club.", tipo: "error" };
+        }
+      } catch (err) {
+        console.error("Error asignando club:", err);
+        this.mensaje = { texto: "Error de red al asignar club.", tipo: "error" };
+      } finally {
+        this.assigning = false;
+        setTimeout(() => (this.mensaje.texto = ""), 2500);
+      }
+    },
+  },
+  async mounted() {
+    await this.cargarUsuarioActual();
+    // await this.cargarClubs();
+    // ...existing mounted logic (si lo hay)...
   },
 };
 </script>

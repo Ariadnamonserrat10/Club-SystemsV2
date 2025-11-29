@@ -1,9 +1,13 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
 const router = useRouter();
+
+// lista de clubs y selección
+const clubsList = ref([]);
+const selectedClubId = ref(null);
 
 const userType = ref("oficina");
 const showSuccessModal = ref(false);
@@ -48,6 +52,19 @@ const handleImageUpload = (event) => {
   }
 };
 
+// cargar lista de clubs (si existe endpoint)
+onMounted(async () => {
+  try {
+    const res = await axios.get("http://localhost/Backend/getClubs.php");
+    if (res.data?.status === "success" && Array.isArray(res.data.data)) {
+      clubsList.value = res.data.data;
+    }
+  } catch (err) {
+    // fallback: no romper si endpoint no existe
+    console.warn("No se pudieron cargar clubs (getClubs.php):", err.message);
+  }
+});
+
 // 🔹 Conexión con PHP y MySQL (corregida y completa)
 const handleRegister = async () => {
   alertError.value = "";
@@ -75,28 +92,17 @@ const handleRegister = async () => {
   }
 
   try {
+    // enviar club_asignado si se seleccionó (mantener compatibilidad con backend)
     const payload = {
-      nombre: form.value.nombre,
-      apellidoP: form.value.apellidoP,
-      apellidoM: form.value.apellidoM,
-      usuario: form.value.usuario,
-      password: form.value.password,
-      tipo: userType.value === "oficina" ? "OFICINA" : "MONITOR"
+      ...form.value,
+      tipo_usuario: userType.value === "oficina" ? "OFICINA" : "MONITOR",
+      // campo que tu backend debe recibir; ajustar nombre si tu Registrar.php espera otro
+      club_asignado: selectedClubId.value ? Number(selectedClubId.value) : null,
     };
 
-    if (userType.value === "monitor") {
-      payload.numeroControl = form.value.numeroControl;
-      payload.telefono = form.value.telefono || "";
-      // Si más adelante manejas IDs numéricos para carrera/semestre en BD, asigna aquí
-      // payload.carrera_id = Number(form.value.carrera_id) || null;
-      // payload.semestre_id = Number(form.value.semestre_id) || null;
-    }
-
-    const response = await axios.post(
-      "http://localhost/Backend/Registrar.php",
-      payload,
-      { headers: { "Content-Type": "application/json" } }
-    );
+    console.log("Enviando payload:", payload);
+    const response = await axios.post("http://localhost/Backend/Registrar.php", payload);
+    console.log("Respuesta Registrar.php:", response.status, response.data);
 
     if (response.data.status === "success") {
       registeredUser.value = {
@@ -309,6 +315,15 @@ const goToLogin = () => {
               <option v-for="n in 7" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
+        </div>
+
+        <!-- Selector de club: visible solo para tipo monitor -->
+        <div v-if="userType === 'monitor'" class="mb-3">
+          <label for="clubSelect" class="form-label">Club asignado (opcional)</label>
+          <select id="clubSelect" v-model="selectedClubId" class="form-select">
+            <option :value="null">-- Ninguno --</option>
+            <option v-for="c in clubsList" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+          </select>
         </div>
 
         <!-- Datos de acceso -->

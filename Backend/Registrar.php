@@ -8,144 +8,115 @@ include __DIR__ . "/db.php";
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   http_response_code(204);
-  exit; // preflight
-}
-
-$data = json_decode(file_get_contents("php://input"), true);
-
-// Depuración opcional: habilita con ?debug=1 para ver payload recibido
-if (isset($_GET['debug']) && $_GET['debug'] == '1') {
-  header("Content-Type: application/json; charset=utf-8");
-  echo json_encode(["debug_payload" => $data], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-if (!$data) {
+$input = json_decode(file_get_contents("php://input"), true);
+
+if (!$input) {
   http_response_code(400);
   echo json_encode(["status" => "error", "message" => "No se recibieron datos"]);
   exit;
 }
 
-$nombre = trim($data["nombre"] ?? $data["Nombre"] ?? "");
-$apellidoP = trim($data["apellidoP"] ?? $data["apellido_paterno"] ?? $data["apellidoPaterno"] ?? "");
-$apellidoM = trim($data["apellidoM"] ?? $data["apellido_materno"] ?? $data["apellidoMaterno"] ?? "");
-$tipo = strtoupper(trim($data["tipo"] ?? $data["tipo_usuario"] ?? $data["tipoUsuario"] ?? ""));
-$usuario = trim($data["usuario"] ?? $data["Usuario"] ?? "");
-$password_raw = (string)($data["password"] ?? $data["contrasena"] ?? $data["contrasenaPlano"] ?? "");
+// Normalizar campos posibles desde frontend
+$nombre = trim($input['nombre'] ?? $input['Nombre'] ?? '');
+$apellidoP = trim($input['apellidoP'] ?? $input['apellido_paterno'] ?? $input['apellidoPaterno'] ?? '');
+$apellidoM = trim($input['apellidoM'] ?? $input['apellido_materno'] ?? $input['apellidoMaterno'] ?? '');
+$numeroControl = trim($input['numeroControl'] ?? $input['numero_control'] ?? $input['numero_controlo'] ?? '');
+$telefono = trim($input['telefono'] ?? '');
+$carrera_id = isset($input['carrera']) ? (int)$input['carrera'] : (isset($input['carrera_id']) ? (int)$input['carrera_id'] : null);
+$semestre_id = isset($input['semestre']) ? (int)$input['semestre'] : (isset($input['semestre_id']) ? (int)$input['semestre_id'] : null);
+$usuario = trim($input['usuario'] ?? $input['Usuario'] ?? '');
+$password_raw = (string)($input['password'] ?? $input['contrasena'] ?? '');
+$tipo = strtoupper(trim($input['tipo_usuario'] ?? $input['tipo'] ?? 'OFICINA'));
+$club_asignado = isset($input['club_asignado']) && $input['club_asignado'] !== '' ? (int)$input['club_asignado'] : null;
+$foto = trim($input['foto'] ?? null);
 
-// Campos MONITOR opcionales
-$numeroControl = trim($data["numeroControl"] ?? $data["numero_control"] ?? $data["numControl"] ?? "");
-$telefono = trim($data["telefono"] ?? $data["tel"] ?? "");
-$carrera_id = $data["carrera_id"] ?? $data["carreraId"] ?? null;
-$semestre_id = $data["semestre_id"] ?? $data["semestreId"] ?? null;
-
-// Validaciones base
-if ($nombre === '' || $apellidoP === '' || $apellidoM === '' || $tipo === '' || $usuario === '') {
+// Validaciones básicas
+if ($nombre === '' || $apellidoP === '' || $usuario === '' || $password_raw === '') {
   http_response_code(422);
-  echo json_encode([
-    "status" => "error",
-    "message" => "Faltan datos obligatorios (nombre, apellidos, tipo, usuario)",
-    "campos_recibidos" => [
-      "nombre" => $nombre,
-      "apellidoP" => $apellidoP,
-      "apellidoM" => $apellidoM,
-      "tipo" => $tipo,
-      "usuario" => $usuario
-    ]
-  ]);
+  echo json_encode(["status" => "error", "message" => "Faltan campos requeridos (nombre, apellidoP, usuario o contraseña)"]);
   exit;
 }
 
-if ($password_raw === '') {
-  http_response_code(422);
-  echo json_encode(["status" => "error", "message" => "Contraseña vacía"]);
-  exit;
+// Verificar duplicados: por usuario o por número de control si se proporcionó
+if ($usuario !== '') {
+  $q = "SELECT id FROM usuarios WHERE usuario = ?";
+  $stmtc = $conexion->prepare($q);
+  if ($stmtc) {
+    $stmtc->bind_param("s", $usuario);
+    $stmtc->execute();
+    $stmtc->store_result();
+    if ($stmtc->num_rows > 0) {
+      echo json_encode(["status" => "error", "message" => "Nombre de usuario ya registrado"]);
+      exit;
+    }
+  }
 }
-
-if (!in_array($tipo, ['OFICINA','MONITOR'], true)) {
-  http_response_code(422);
-  echo json_encode(["status" => "error", "message" => "Tipo inválido. Use OFICINA o MONITOR"]);
-  exit;
-}
-
-// Reglas específicas para MONITOR
-if ($tipo === 'MONITOR') {
-  if ($numeroControl === '') {
-    http_response_code(422);
-    echo json_encode(["status" => "error", "message" => "numeroControl es obligatorio para MONITOR"]);
-    exit;
+if ($numeroControl !== '') {
+  $q2 = "SELECT id FROM usuarios WHERE numeroControl = ?";
+  $stmtc2 = $conexion->prepare($q2);
+  if ($stmtc2) {
+    $stmtc2->bind_param("s", $numeroControl);
+    $stmtc2->execute();
+    $stmtc2->store_result();
+    if ($stmtc2->num_rows > 0) {
+      echo json_encode(["status" => "error", "message" => "Número de control ya registrado"]);
+      exit;
+    }
   }
 }
 
-// Normalizar enteros opcionales (NULL si no vienen)
-$carrera_id = ($carrera_id === '' || $carrera_id === null) ? null : (int)$carrera_id;
-$semestre_id = ($semestre_id === '' || $semestre_id === null) ? null : (int)$semestre_id;
+// Hashear contraseña
+$password_hash = password_hash($password_raw, PASSWORD_BCRYPT);
 
-$hash = password_hash($password_raw, PASSWORD_BCRYPT);
-
-// Verificar duplicados: usuario y numeroControl (si aplica)
-// 1) usuario
-$stmt_check_u = $conexion->prepare("SELECT id FROM usuarios WHERE usuario = ?");
-if (!$stmt_check_u) {
+// Preparar INSERT (usar columnas existentes en tu tabla)
+$query = "INSERT INTO usuarios (nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, usuario, password, tipo, club_asignado, foto)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+$stmt = $conexion->prepare($query);
+if (!$stmt) {
   http_response_code(500);
-  echo json_encode(["status" => "error", "message" => "Error preparando verificación usuario: " . $conexion->error]);
-  exit;
-}
-$stmt_check_u->bind_param("s", $usuario);
-$stmt_check_u->execute();
-$stmt_check_u->store_result();
-if ($stmt_check_u->num_rows > 0) {
-  http_response_code(409);
-  echo json_encode(["status" => "error", "message" => "Usuario ya registrado"]);
+  echo json_encode(["status" => "error", "message" => "Error al preparar consulta: " . $conexion->error]);
   exit;
 }
 
-// 2) numeroControl sólo para MONITOR
-if ($tipo === 'MONITOR') {
-  $stmt_check_nc = $conexion->prepare("SELECT id FROM usuarios WHERE numeroControl = ?");
-  if (!$stmt_check_nc) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando verificación numeroControl: " . $conexion->error]);
-    exit;
-  }
-  $stmt_check_nc->bind_param("s", $numeroControl);
-  $stmt_check_nc->execute();
-  $stmt_check_nc->store_result();
-  if ($stmt_check_nc->num_rows > 0) {
-    http_response_code(409);
-    echo json_encode(["status" => "error", "message" => "numeroControl ya registrado"]);
-    exit;
-  }
-}
+// Normalizar valores que pueden ser null
+$telefono_val = $telefono !== '' ? $telefono : null;
+$carrera_val = $carrera_id !== null ? $carrera_id : null;
+$semestre_val = $semestre_id !== null ? $semestre_id : null;
+$club_val = $club_asignado !== null ? $club_asignado : null;
+$foto_val = $foto !== '' ? $foto : null;
 
-// Inserción
-if ($tipo === 'MONITOR') {
-  $sql = "INSERT INTO usuarios (nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, usuario, password, tipo)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-  $stmt = $conexion->prepare($sql);
-  if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando inserción: " . $conexion->error]);
-    exit;
-  }
-  // Para permitir NULL en ints, usamos bind_param con tipos y pasamos variables que pueden ser NULL mediante set to null y usar 'i' aceptará 0; para NULL verdadero, usaremos bind con mysqli_stmt::bind_param y luego setear -> send_long_data no aplica. Simplificamos: si null, pasamos NULL con $stmt->bind_param no soporta directamente; usamos ->bind_param y luego ->execute() con ->bind_param admite null si la variable es NULL y mysqlnd lo permite.
-  $stmt->bind_param("sssssiisss", $nombre, $apellidoP, $apellidoM, $numeroControl, $telefono, $carrera_id, $semestre_id, $usuario, $hash, $tipo);
-} else { // OFICINA
-  $sql = "INSERT INTO usuarios (nombre, apellidoP, apellidoM, usuario, password, tipo)
-          VALUES (?, ?, ?, ?, ?, ?)";
-  $stmt = $conexion->prepare($sql);
-  if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando inserción: " . $conexion->error]);
-    exit;
-  }
-  $stmt->bind_param("ssssss", $nombre, $apellidoP, $apellidoM, $usuario, $hash, $tipo);
-}
+// bind_param no acepta null directamente para tipos "s" — usar variables y convertir a cadenas vacías si es null
+$stmt->bind_param(
+  "ssssiiissis s",
+  $nombre,
+  $apellidoP,
+  $apellidoM,
+  $numeroControl,
+  $telefono_val,
+  $carrera_val,
+  $semestre_val,
+  $usuario,
+  $password_hash,
+  $tipo,
+  $club_val,
+  $foto_val
+);
 
-if ($stmt->execute()) {
-  echo json_encode(["status" => "success", "message" => "Usuario registrado exitosamente", "id" => $stmt->insert_id ?? null]);
-} else {
+// Nota: si tu versión de PHP/MariaDB no admite bind con tipos mixtos y null, usa esta alternativa:
+try {
+  // Ejecutar y comprobar
+  if ($stmt->execute()) {
+    $newId = $stmt->insert_id;
+    echo json_encode(["status" => "success", "message" => "Usuario registrado exitosamente", "id" => (int)$newId]);
+  } else {
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Error al registrar usuario: " . $stmt->error]);
+  }
+} catch (Exception $e) {
   http_response_code(500);
-  echo json_encode(["status" => "error", "message" => "Error al registrar usuario: " . $stmt->error]);
+  echo json_encode(["status" => "error", "message" => "Excepción: " . $e->getMessage()]);
 }
 ?>
