@@ -117,27 +117,86 @@
 </template>
 
 <script>
+import { createAlumno, getAlumnos } from '../services/api';
+
 export default {
   name: 'AlumnosR',
   props: ['alumnos', 'clubs'],
   data() {
     return {
       form: { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '' },
-      pendingDeleteIndex: null
+      pendingDeleteIndex: null,
+      loading: false,
     };
   },
   methods: {
+    async loadAlumnos() {
+      try {
+        const rows = await getAlumnos();
+        const mapped = rows.map(r => {
+          const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.id === Number(r.id_club)) : null;
+          return {
+            nombre: r.nombre,
+            apellidoP: r.apellidoP,
+            apellidoM: r.apellidoM,
+            carrera: '', // sin catálogo visible en UI
+            semestre: r.semestre_id ?? '',
+            control: r.numeroControl,
+            telefono: r.telefono || '',
+            club: clubObj ? clubObj.nombre : '',
+            faltas: 0,
+            asistencias: {},
+          };
+        });
+        this.$emit('set-alumnos', mapped, 'Sistema');
+      } catch (e) {
+        if (this.$root.showError) this.$root.showError(e.message || 'Error al cargar alumnos');
+      }
+    },
     openAddModal() {
       this.form = { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '' };
       new bootstrap.Modal(document.getElementById('modalAddRegistered')).show();
     },
-    saveRegistered() {
+    async saveRegistered() {
       if (!this.form.nombre || !/^\d{8}$/.test(this.form.control) || !/^\d+$/.test(this.form.telefono) || !this.form.club) {
         return this.$root.showError ? this.$root.showError('Verifique los campos (control 8 dígitos, teléfono numérico, club obligatorio)') : null;
       }
-      this.$emit('add-alumno', { ...this.form }, 'Usuario Oficina');
-      bootstrap.Modal.getInstance(document.getElementById('modalAddRegistered')).hide();
-      this.form = { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '' };
+      try {
+        this.loading = true;
+        // mapear club nombre a id (si existe)
+        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.nombre === this.form.club) : null;
+        const id_club = clubObj && clubObj.id ? clubObj.id : null;
+        // carrera y semestre no tienen id en UI; enviar null o numérico si los usas
+        const payload = {
+          nombre: this.form.nombre,
+          apellidoP: this.form.apellidoP,
+          apellidoM: this.form.apellidoM,
+          numeroControl: this.form.control,
+          telefono: this.form.telefono || null,
+          carrera_id: null,
+          semestre_id: this.form.semestre ? Number(this.form.semestre) : null,
+          id_club,
+        };
+        const saved = await createAlumno(payload);
+        // Emitir al padre para UI; mantener propiedades visuales existentes
+        this.$emit('add-alumno', {
+          nombre: saved.nombre,
+          apellidoP: saved.apellidoP,
+          apellidoM: saved.apellidoM,
+          carrera: this.form.carrera,
+          semestre: this.form.semestre,
+          control: saved.numeroControl,
+          telefono: saved.telefono,
+          club: this.form.club,
+        }, 'Usuario Oficina');
+        bootstrap.Modal.getInstance(document.getElementById('modalAddRegistered')).hide();
+        this.form = { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '' };
+        if (this.$root.showToast) this.$root.showToast('Alumno registrado en BD');
+      } catch (e) {
+        if (this.$root.showError) this.$root.showError(e.message || 'Error al registrar alumno');
+      } finally {
+        this.loading = false;
+      }
     },
     soloNumeros(campo) {
       this.form[campo] = this.form[campo].replace(/\D/g, '');
@@ -150,6 +209,9 @@ export default {
       this.$emit('delete-alumno', this.pendingDeleteIndex, 'Usuario Oficina');
       bootstrap.Modal.getInstance(document.getElementById('confirmDeleteRegistered')).hide();
     }
+  },
+  async mounted() {
+    await this.loadAlumnos();
   }
 };
 </script>

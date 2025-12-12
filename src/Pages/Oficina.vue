@@ -109,6 +109,7 @@
         @log="handleLog"
         @import-unregistered="handleImportUnregistered"
         @filter-users="handleFilterUsers"
+        @set-alumnos="handleSetAlumnos"
       />
     </div>
 
@@ -477,6 +478,12 @@ export default {
       return this.usuarios.filter((u) =>
         filter.tipo ? u.tipo === filter.tipo : true
       );
+    },
+
+    handleSetAlumnos(list, actor = 'Sistema') {
+      this.alumnos = Array.isArray(list) ? list : [];
+      this.logAction(actor, 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
+      this.showToast('Alumnos cargados');
     },
 
     // auditoría helper
