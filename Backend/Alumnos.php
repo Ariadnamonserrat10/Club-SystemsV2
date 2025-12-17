@@ -8,7 +8,7 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -119,6 +119,79 @@ try {
     $row = $res->fetch_assoc();
 
     http_response_code(201);
+    echo json_encode(['data' => $row]);
+    exit;
+  }
+
+  if ($method === 'PUT') {
+    // Actualizar alumno por id (campos parciales)
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    if ($id <= 0) {
+      http_response_code(400);
+      echo json_encode(['error' => 'ID inválido']);
+      exit;
+    }
+
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) { $payload = []; }
+
+    // Obtener registro actual
+    $stmtSel = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club FROM alumnos WHERE id = ?');
+    $stmtSel->bind_param('i', $id);
+    $stmtSel->execute();
+    $resSel = $stmtSel->get_result();
+    $cur = $resSel->fetch_assoc();
+    if (!$cur) {
+      http_response_code(404);
+      echo json_encode(['error' => 'No encontrado']);
+      exit;
+    }
+
+    $nombre = array_key_exists('nombre', $payload) ? trim((string)$payload['nombre']) : $cur['nombre'];
+    $apellidoP = array_key_exists('apellidoP', $payload) ? trim((string)$payload['apellidoP']) : $cur['apellidoP'];
+    $apellidoM = array_key_exists('apellidoM', $payload) ? trim((string)$payload['apellidoM']) : $cur['apellidoM'];
+    $numeroControl = array_key_exists('numeroControl', $payload) ? trim((string)$payload['numeroControl']) : $cur['numeroControl'];
+    $telefono = array_key_exists('telefono', $payload) ? trim((string)$payload['telefono']) : $cur['telefono'];
+    $carrera_id = array_key_exists('carrera_id', $payload) ? ($payload['carrera_id'] !== '' ? (int)$payload['carrera_id'] : null) : $cur['carrera_id'];
+    $semestre_id = array_key_exists('semestre_id', $payload) ? ($payload['semestre_id'] !== '' ? (int)$payload['semestre_id'] : null) : $cur['semestre_id'];
+    $id_club = array_key_exists('id_club', $payload) ? ($payload['id_club'] !== '' ? (int)$payload['id_club'] : null) : $cur['id_club'];
+
+    // Validaciones básicas
+    $errors = [];
+    if ($nombre === '') { $errors[] = 'nombre es requerido'; }
+    if ($apellidoP === '') { $errors[] = 'apellidoP es requerido'; }
+    if ($apellidoM === '') { $errors[] = 'apellidoM es requerido'; }
+    if ($numeroControl === '' || !preg_match('/^\d{8}$/', $numeroControl)) { $errors[] = 'numeroControl debe tener 8 dígitos'; }
+    if ($telefono !== '' && $telefono !== null && !preg_match('/^\d{7,15}$/', $telefono)) { $errors[] = 'telefono debe ser numérico (7-15 dígitos) o vacío'; }
+
+    if (!empty($errors)) {
+      http_response_code(422);
+      echo json_encode(['error' => 'Validación', 'details' => $errors]);
+      exit;
+    }
+
+    $sql = 'UPDATE alumnos SET nombre = ?, apellidoP = ?, apellidoM = ?, numeroControl = ?, telefono = ?, carrera_id = ?, semestre_id = ?, id_club = ? WHERE id = ?';
+    $stmt = $conexion->prepare($sql);
+
+    $tel = ($telefono !== '') ? $telefono : null;
+    $car = $carrera_id;
+    $sem = $semestre_id;
+    $club = $id_club;
+
+    $stmt->bind_param('sssssiisi', $nombre, $apellidoP, $apellidoM, $numeroControl, $tel, $car, $sem, $club, $id);
+
+    if (!$stmt->execute()) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Error al actualizar', 'message' => $stmt->error]);
+      exit;
+    }
+
+    $stmtGet = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos WHERE id = ?');
+    $stmtGet->bind_param('i', $id);
+    $stmtGet->execute();
+    $res = $stmtGet->get_result();
+    $row = $res->fetch_assoc();
+
     echo json_encode(['data' => $row]);
     exit;
   }

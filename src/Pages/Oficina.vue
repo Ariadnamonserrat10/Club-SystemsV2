@@ -100,6 +100,7 @@
         :usuarios="usuarios"
         :fechas="fechas"
         :auditoria="auditoria"
+        :carreras="carreras"
         @add-club="handleAddClub"
         @edit-club="handleEditClub"
         @delete-club="handleDeleteClub"
@@ -110,6 +111,8 @@
         @import-unregistered="handleImportUnregistered"
         @filter-users="handleFilterUsers"
         @set-alumnos="handleSetAlumnos"
+        @update-alumno="handleUpdateAlumno"
+        @request-reload-alumnos="loadAlumnos"
       />
     </div>
 
@@ -141,7 +144,7 @@ import AlumnosR from "../components/AlumnosR.vue";
 import Constancias from "../components/Constancias.vue";
 import Auditoria from "../components/Auditoria.vue";
 import Listas from "../components/Listas.vue";
-import { getClubs, createClub, updateClub, deleteClub } from "../services/api";
+import { getClubs, getAlumnos, createClub, updateClub, deleteClub } from "../services/api";
 import axios from "axios";
 
 export default {
@@ -166,6 +169,16 @@ export default {
      },
       currentView: "ClubsR",
       clubs: [], // se cargará desde API más adelante
+
+      carreras: [
+        { id: 1, nombre: 'Ingeniería Civil' },
+        { id: 2, nombre: 'Ingeniería Industrial' },
+        { id: 3, nombre: 'Ingeniería en Sistemas Computacionales' },
+        { id: 4, nombre: 'Ingeniería en Gestión Empresarial' },
+        { id: 5, nombre: 'Licenciatura en Administración' },
+        { id: 6, nombre: 'Licenciatura en Arquitectura' },
+        { id: 7, nombre: 'Ingeniería en Mecatrónica' },
+      ],
 
       alumnos: [
         {
@@ -256,7 +269,7 @@ export default {
         const rows = await getClubs();
         // Mapear a estructura de UI
         this.clubs = rows.map((r) => ({
-          id: r.id,
+          id: Number(r.id),
           nombre: r.nombre,
           descripcion: r.descripcion,
           cupo: r.cupo_limite,
@@ -266,6 +279,38 @@ export default {
         }));
       } catch (e) {
         this.showError(e.message || "No se pudo cargar clubs");
+      }
+    },
+
+    async loadAlumnos() {
+      try {
+        const rows = await getAlumnos();
+        // Mapear alumnos desde BD y resolver nombre de club y carrera por id
+        this.alumnos = rows.map((r) => {
+          const clubObj = Array.isArray(this.clubs)
+            ? this.clubs.find((c) => c.id === Number(r.id_club))
+            : null;
+          const carreraObj = Array.isArray(this.carreras)
+            ? this.carreras.find((c) => c.id === Number(r.carrera_id))
+            : null;
+          return {
+            id: r.id,
+            nombre: r.nombre,
+            apellidoP: r.apellidoP,
+            apellidoM: r.apellidoM,
+            carrera: carreraObj ? carreraObj.nombre : '',
+            semestre: r.semestre_id ?? '',
+            control: r.numeroControl,
+            telefono: r.telefono || '',
+            club: clubObj ? clubObj.nombre : '',
+            faltas: 0,
+            asistencias: {},
+          };
+        });
+        this.logAction('Sistema', 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
+        this.showToast('Alumnos cargados');
+      } catch (e) {
+        this.showError(e.message || 'No se pudo cargar alumnos');
       }
     },
 
@@ -280,7 +325,7 @@ export default {
         };
         const saved = await createClub(payload);
         const mapped = {
-          id: saved.id,
+          id: Number(saved.id),
           nombre: saved.nombre,
           descripcion: saved.descripcion,
           cupo: saved.cupo_limite,
@@ -313,7 +358,7 @@ export default {
         };
         const saved = await updateClub(current.id, payload);
         const mapped = {
-          id: saved.id,
+          id: Number(saved.id),
           nombre: saved.nombre,
           descripcion: saved.descripcion,
           cupo: saved.cupo_limite,
@@ -361,6 +406,14 @@ export default {
         `Se registró al alumno "${alumno.nombre} ${alumno.apellidoP}"`
       );
       this.showToast("Alumno registrado correctamente");
+    },
+
+    handleUpdateAlumno({ index, alumno }, actor = 'Usuario Oficina') {
+      if (index < 0 || index >= this.alumnos.length) return;
+      const prev = this.alumnos[index];
+      this.alumnos.splice(index, 1, { ...prev, ...alumno });
+      this.logAction(actor, 'Editar', 'alumno', `Se actualizó el alumno "${alumno.nombre || prev.nombre} ${alumno.apellidoP || prev.apellidoP}"`);
+      this.showToast('Alumno actualizado');
     },
 
     handleDeleteAlumno(index, actor = "Usuario Oficina") {
@@ -553,6 +606,7 @@ export default {
   
   await this.cargarUsuarioActual();
   await this.loadClubs();
+  await this.loadAlumnos();
 },
 };
 </script>
