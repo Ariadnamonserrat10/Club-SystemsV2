@@ -69,3 +69,18 @@ export async function createAlumno(payload) {
   }
   return data.data;
 }
+
+export async function updateAlumno(id, payload) {
+  const url = `${ALUMNOS_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await toJson(res);
+  if (!res.ok) {
+    const msg = data?.message || data?.error || (Array.isArray(data?.details) ? data.details.join(', ') : 'Error al actualizar alumno');
+    throw new Error(msg);
+  }
+  return data.data;
+}

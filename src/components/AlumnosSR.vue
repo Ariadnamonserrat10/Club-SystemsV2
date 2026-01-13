@@ -64,9 +64,9 @@
               <div class="col-md-4 mt-2">
                 <select v-model="form.carrera" class="form-select">
                   <option disabled value="">Selecciona carrera</option>
-                  <option>Ingeniería en Sistemas</option>
+                  <option>ISC</option>
                   <option>Ingeniería Industrial</option>
-                  <option>Administración</option>
+                  <option>ADMON</option>
                   <option>Contaduría</option>
                   <option>Arquitectura</option>
                   <option>Derecho</option>
