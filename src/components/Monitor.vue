@@ -56,48 +56,47 @@
         </div>
       </div>
 
-      <!-- TABLA DE ASISTENCIAS -->
-      <div v-if="alumnosClub.length">
-        <table class="table table-hover align-middle">
-          <thead class="table-primary text-center">
-            <tr>
-              <th>Nombre</th>
-              <th v-for="fecha in fechas" :key="fecha">{{ fecha }}</th>
-              <th>Acreditado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(alumno, index) in alumnosClub" :key="index">
-              <td>{{ alumno.nombre }} {{ alumno.apellidoP }}</td>
-              <td v-for="fecha in fechas" :key="fecha" class="text-center">
-                <input
-                  type="checkbox"
-                  v-model="alumno.asistencias[fecha]"
-                  @change="actualizarFaltas(alumno)"
-                />
-              </td>
-              <td class="text-center">
-                <span
-                  class="badge"
-                  :class="alumno.faltas < 3 ? 'bg-success' : 'bg-danger'"
-                >
-                  {{ alumno.faltas < 3 ? 'Acreditado' : 'No acreditado' }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- TABLA DE ASISTENCIAS SIEMPRE VISIBLE PARA MOSTRAR FECHAS -->
+      <table class="table table-hover align-middle">
+        <thead class="table-primary text-center">
+          <tr>
+            <th>Nombre</th>
+            <th v-for="fecha in fechasData" :key="fecha">{{ fecha }}</th>
+            <th>Acreditado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="alumnosClub.length === 0">
+            <td :colspan="(fechasData.length + 2)" class="text-center text-muted">
+              No hay alumnos registrados en este club.
+            </td>
+          </tr>
+          <tr v-else v-for="(alumno, index) in alumnosClub" :key="index">
+            <td>{{ alumno.nombre }} {{ alumno.apellidoP }}</td>
+            <td v-for="fecha in fechasData" :key="fecha" class="text-center">
+              <input
+                type="checkbox"
+                v-model="alumno.asistencias[fecha]"
+                @change="onToggleAsistencia(alumno, fecha)"
+              />
+            </td>
+            <td class="text-center">
+              <span
+                class="badge"
+                :class="alumno.faltas < 3 ? 'bg-success' : 'bg-danger'"
+              >
+                {{ alumno.faltas < 3 ? 'Acreditado' : 'No acreditado' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        <!-- BOTÓN GUARDAR CAMBIOS -->
-        <div class="d-flex justify-content-end mt-3">
-          <button class="btn btn-outline-primary" @click="guardarCambios">
-            Guardar cambios
-          </button>
-        </div>
-      </div>
-
-      <div v-else class="text-center text-muted py-5">
-        No hay alumnos registrados en este club.
+      <!-- BOTÓN GUARDAR CAMBIOS (OPCIONAL) -->
+      <div class="d-flex justify-content-end mt-3" v-if="alumnosClub.length">
+        <button class="btn btn-outline-primary" @click="guardarCambios">
+          Guardar cambios
+        </button>
       </div>
     </div>
   </div>
@@ -105,10 +104,11 @@
 
 <script>
 import axios from "axios";
+import { getAsistenciasPorClub, crearFechaAsistencias, actualizarAsistencia, getAlumnos } from "../services/api";
 
 export default {
   name: "Monitor",
-  props: ["clubs", "alumnos", "fechas"],
+  // No props; el componente se auto gestiona desde backend
   data() {
     return {
       usuarioActual: {
@@ -125,20 +125,22 @@ export default {
       assigning: false,       // flag al asignar
       nuevaFecha: "",
       mensaje: { texto: "", tipo: "" },
+      // listas manejadas desde backend
+      alumnosData: [],
+      fechasData: [],
     };
   },
   computed: {
     alumnosClub() {
-      return this.alumnos
-        .filter((a) => a.club === this.monitor.club)
-        .map((a) => {
-          if (!a.asistencias) a.asistencias = {};
-          this.fechas.forEach((f) => {
-            if (!(f in a.asistencias)) a.asistencias[f] = false;
-          });
-          a.faltas = Object.values(a.asistencias).filter((v) => v === false).length;
-          return a;
+      // Ya vienen filtrados por club desde backend; asegurar asistencias y faltas
+      return (this.alumnosData || []).map((a) => {
+        if (!a.asistencias) a.asistencias = {};
+        this.fechasData.forEach((f) => {
+          if (!(f in a.asistencias)) a.asistencias[f] = false;
         });
+        a.faltas = Object.values(a.asistencias).filter((v) => v === false).length;
+        return a;
+      });
     },
   },
   methods: {
@@ -148,7 +150,7 @@ export default {
         if (!usuarioId) return;
 
         const response = await axios.get(
-          `http://localhost/Backend/obtenerUsuario.php?id=${usuarioId}`
+          `/api/obtenerUsuario.php?id=${usuarioId}`
         );
 
         if (response.data?.status === "success") {
@@ -169,9 +171,43 @@ export default {
       }
     },
 
+    async loadAsistencias() {
+      const clubId = this.usuarioActual.club_asignado;
+      if (!clubId) return;
+      try {
+        // 1) Cargar alumnos por club (garantiza lista aunque no haya asistencias)
+        let alumnosClub = [];
+        try {
+          const res = await fetch(`/api/Alumnos.php?club_id=${encodeURIComponent(clubId)}`);
+          const json = await res.json();
+          if (res.ok && json && Array.isArray(json.data)) {
+            alumnosClub = json.data;
+          }
+        } catch {}
+
+        // 2) Cargar asistencias por club
+        const data = await getAsistenciasPorClub(clubId);
+        // fechas en ISO yyyy-mm-dd
+        this.fechasData = Array.isArray(data.fechas) ? data.fechas : [];
+
+        // Preferir alumnos del endpoint de asistencias si vienen, si no usar los de alumnos por club
+        const alumnos = (Array.isArray(data.alumnos) && data.alumnos.length) ? data.alumnos : alumnosClub;
+        const asist = data.asistencias || {};
+
+        // Mapear estructura de asistencias por alumno y fecha
+        this.alumnosData = (alumnos || []).map((al) => {
+          const map = { ...(asist[al.id] || {}) };
+          return { ...al, asistencias: map, faltas: Object.values(map).filter(v => v === false).length };
+        });
+      } catch (e) {
+        console.error('Error cargando asistencias:', e);
+        this.mostrarMensaje('No se pudieron cargar asistencias', 'alert-danger');
+      }
+    },
+
     async cargarClubs() {
       try {
-        const res = await axios.get("http://localhost/Backend/getClubs.php");
+        const res = await axios.get("/api/getClubs.php");
         if (res.data?.status === "success" && Array.isArray(res.data.data)) {
           this.clubsList = res.data.data;
         } else {
@@ -195,42 +231,60 @@ export default {
         this.$router.push("/"); // regresar al login
       }, 1500);
     },
-    agregarFecha() {
+    async agregarFecha() {
       if (!this.nuevaFecha) {
         this.mostrarMensaje("Seleccione una fecha antes de agregar.", "alert-warning");
         return;
       }
-
-      const fechaFormateada = new Date(this.nuevaFecha).toLocaleDateString("es-MX", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-
-      if (this.fechas.includes(fechaFormateada)) {
+      if (!this.usuarioActual.club_asignado) {
+        this.mostrarMensaje("No hay club asignado.", "alert-danger");
+        return;
+      }
+      const fechaISO = this.nuevaFecha; // YYYY-MM-DD desde input type="date"
+      if (this.fechasData.includes(fechaISO)) {
         this.mostrarMensaje("La fecha ya está registrada.", "alert-danger");
         return;
       }
-
-      this.fechas.push(fechaFormateada);
-      this.alumnosClub.forEach((alumno) => {
-        alumno.asistencias[fechaFormateada] = false;
-        alumno.faltas = Object.values(alumno.asistencias).filter((v) => v === false).length;
-      });
-
-      this.nuevaFecha = "";
-      this.mostrarMensaje("Fecha agregada correctamente.", "alert-success");
+      try {
+        // crear registros default (presente=false) para cada alumno del club
+        const registros = this.alumnosClub.map(a => ({ alumno_id: a.id, presente: false }));
+        await crearFechaAsistencias({ club_id: this.usuarioActual.club_asignado, fecha: fechaISO, registros });
+        // recargar desde backend para visualizar
+        await this.loadAsistencias();
+        this.nuevaFecha = "";
+        this.mostrarMensaje("Fecha agregada correctamente.", "alert-success");
+      } catch (e) {
+        console.error('Error creando fecha:', e);
+        this.mostrarMensaje("No se pudo crear la fecha.", "alert-danger");
+      }
     },
-    actualizarFaltas(alumno) {
+    async actualizarFaltas(alumno) {
+      // Este método se dispara al cambiar un checkbox
       alumno.faltas = Object.values(alumno.asistencias).filter((v) => v === false).length;
+      try {
+        // Detectar la última fecha cambiada no es trivial; se usa delegación por evento individual
+        // Este método es llamado por cada checkbox con v-model, por lo que se actualizará la pareja alumno/fecha específica
+        // En lugar de inferir, enviamos todas las asistencias de ese alumno para las fechas existentes (opcional)
+        // Aquí implementamos una aproximación simple: actualizar individualmente por cada fecha cambiada usando el evento @change por celda.
+        // El evento no da la fecha; pero el handler está atado por celda, así que lo mejor es crear un método específico por celda.
+      } catch (e) {
+        console.error('Error actualizando faltas:', e);
+      }
     },
     guardarCambios() {
+      // Ya no se usa LocalStorage; mantener botón por compatibilidad visual
+      this.mostrarMensaje("Cambios guardados.", "alert-info");
+    },
+    async onToggleAsistencia(alumno, fecha) {
+      const presente = !!alumno.asistencias[fecha];
       try {
-        localStorage.setItem("fechas_monitor", JSON.stringify(this.fechas));
-        localStorage.setItem("alumnos_monitor", JSON.stringify(this.alumnos));
-        this.mostrarMensaje("Cambios guardados correctamente.", "alert-success");
-      } catch (error) {
-        this.mostrarMensaje("Error al guardar los datos.", "alert-danger");
+        await actualizarAsistencia({ alumno_id: alumno.id, fecha, presente });
+        this.actualizarFaltas(alumno);
+      } catch (e) {
+        console.error('Error actualizando asistencia:', e);
+        // revertir cambio
+        alumno.asistencias[fecha] = !presente;
+        this.mostrarMensaje('No se pudo actualizar asistencia', 'alert-danger');
       }
     },
     async asignarClub() {
@@ -239,7 +293,7 @@ export default {
       try {
         const usuarioId = sessionStorage.getItem("usuarioId");
         const payload = { usuarioId: Number(usuarioId), club_id: Number(this.selectedClubId) };
-        const res = await axios.post("http://localhost/Backend/asignarClub.php", payload, {
+        const res = await axios.post("/api/asignarClub.php", payload, {
           headers: { "Content-Type": "application/json" }
         });
 
@@ -264,8 +318,7 @@ export default {
   },
   async mounted() {
     await this.cargarUsuarioActual();
-    // await this.cargarClubs();
-    // ...existing mounted logic (si lo hay)...
+    await this.loadAsistencias();
   },
 };
 </script>
