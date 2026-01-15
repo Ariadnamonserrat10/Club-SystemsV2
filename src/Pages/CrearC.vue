@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
+import { getCarreras } from "../services/api";
 
 const router = useRouter();
 
@@ -29,15 +30,8 @@ const form = ref({
   foto: null,
 });
 
-const carreras = [
-  "Ingeniería Civil",
-  "Ingeniería Industrial",
-  "Ingeniería en Sistemas Computacionales",
-  "Ingeniería en Gestión Empresarial",
-  "Licenciatura en Administración",
-  "Licenciatura en Arquitectura",
-  "Ingeniería en Mecatrónica",
-];
+// catálogo de carreras desde backend
+const carreras = ref([]);
 
 const selectUserType = (type) => {
   userType.value = type;
@@ -55,13 +49,22 @@ const handleImageUpload = (event) => {
 // cargar lista de clubs (si existe endpoint)
 onMounted(async () => {
   try {
-    const res = await axios.get("http://localhost/Backend/getClubs.php");
+    const res = await axios.get("/api/getClubs.php");
     if (res.data?.status === "success" && Array.isArray(res.data.data)) {
       clubsList.value = res.data.data;
     }
   } catch (err) {
-    // fallback: no romper si endpoint no existe
     console.warn("No se pudieron cargar clubs (getClubs.php):", err.message);
+  }
+
+  // cargar carreras desde backend
+  try {
+    const list = await getCarreras();
+    if (Array.isArray(list)) {
+      carreras.value = list;
+    }
+  } catch (err) {
+    console.warn("No se pudieron cargar carreras (carreras.php):", err.message);
   }
 });
 
@@ -95,13 +98,13 @@ const handleRegister = async () => {
     // enviar club_asignado si se seleccionó (mantener compatibilidad con backend)
     const payload = {
       ...form.value,
-      tipo_usuario: userType.value === "oficina" ? "OFICINA" : "MONITOR",
-      // campo que tu backend debe recibir; ajustar nombre si tu Registrar.php espera otro
+      tipo: userType.value === "oficina" ? "OFICINA" : "MONITOR",
+      // el backend espera 'tipo' (OFICINA | MONITOR)
       club_asignado: selectedClubId.value ? Number(selectedClubId.value) : null,
     };
 
     console.log("Enviando payload:", payload);
-    const response = await axios.post("http://localhost/Backend/Registrar.php", payload);
+    const response = await axios.post("/api/Registrar.php", payload);
     console.log("Respuesta Registrar.php:", response.status, response.data);
 
     if (response.data.status === "success") {
@@ -304,13 +307,13 @@ const goToLogin = () => {
             />
           </div>
           <div class="col-md-3">
-            <select v-model="form.carrera" class="form-select" required>
+            <select v-model.number="form.carrera" class="form-select" required>
               <option value="">Carrera</option>
-              <option v-for="c in carreras" :key="c" :value="c">{{ c }}</option>
+              <option v-for="c in carreras" :key="c.id" :value="c.id">{{ c.nombre }}</option>
             </select>
           </div>
           <div class="col-md-3">
-            <select v-model="form.semestre" class="form-select" required>
+            <select v-model.number="form.semestre" class="form-select" required>
               <option value="">Semestre</option>
               <option v-for="n in 7" :key="n" :value="n">{{ n }}</option>
             </select>

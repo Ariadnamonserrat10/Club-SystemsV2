@@ -169,7 +169,7 @@ export default {
         });
 
         const response = await axios.post(
-          "http://localhost/Backend/Login.php",
+          "/api/Login.php",
           {
             usuario: this.usuario,
             password: this.password
