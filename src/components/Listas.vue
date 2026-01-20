@@ -18,7 +18,7 @@
         <thead class="table-primary">
           <tr>
             <th>Nombre</th>
-            <th v-for="fecha in fechas" :key="fecha">{{ fecha }}</th>
+            <th v-for="fecha in fechasCols" :key="fecha">{{ fecha }}</th>
             <th>Acreditado</th>
             <th>Acciones</th>
           </tr>
@@ -26,12 +26,9 @@
         <tbody>
           <tr v-for="(alumno, index) in alumnosClub" :key="index">
             <td>{{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}</td>
-            <td v-for="fecha in fechas" :key="fecha" class="text-center">
-              <input
-                type="checkbox"
-                v-model="alumno.asistencias[fecha]"
-                @change="actualizarFaltas(alumno)"
-              />
+            <td v-for="fecha in fechasCols" :key="fecha" class="text-center">
+              <span v-if="alumno.asistencias && alumno.asistencias[fecha]" class="text-success fw-bold">✔</span>
+              <span v-else class="text-danger fw-bold">✖</span>
             </td>
             <td>
               <span
@@ -134,6 +131,7 @@
 </template>
 
 <script>
+import { getAsistenciasPorClub } from '../services/api';
 export default {
   name: 'Listas',
   props: ['clubs', 'alumnos', 'fechas'],
@@ -142,11 +140,25 @@ export default {
       clubSeleccionado: '',
       previewData: null,
       periodoActual: this.getPeriodoActual(),
+      alumnosData: [],
+      fechasData: [],
     };
   },
   computed: {
+    fechasCols() {
+      return (this.fechasData && this.fechasData.length) ? this.fechasData : (this.fechas || []);
+    },
     alumnosClub() {
-      return (this.alumnos || []).filter(a => a.club === this.clubSeleccionado);
+      // Preferir alumnos desde backend; si no hay, usar fallback desde props
+      let base = (this.alumnosData && this.alumnosData.length)
+        ? this.alumnosData.slice()
+        : (this.alumnos || []).filter(a => a.club === this.clubSeleccionado).map(a => {
+            const asist = a.asistencias || {};
+            const faltas = Object.values(asist).filter(v => v === false).length;
+            return { ...a, asistencias: asist, faltas };
+          });
+      base.sort((a,b)=> (a.apellidoP||'').localeCompare(b.apellidoP||'') || (a.apellidoM||'').localeCompare(b.apellidoM||'') || (a.nombre||'').localeCompare(b.nombre||''));
+      return base;
     },
     fechaHoy() {
       const ahora = new Date();
@@ -155,6 +167,25 @@ export default {
     }
   },
   methods: {
+    async loadAsistencias() {
+      const club = (this.clubs || []).find(c => c.nombre === this.clubSeleccionado);
+      if (!club || !club.id) { this.alumnosData = []; this.fechasData = []; return; }
+      try {
+        const data = await getAsistenciasPorClub(club.id);
+        this.fechasData = Array.isArray(data.fechas) ? data.fechas : [];
+        const alumnos = Array.isArray(data.alumnos) ? data.alumnos : [];
+        const asist = data.asistencias || {};
+        this.alumnosData = alumnos.map(al => {
+          const map = { ...(asist[al.id] || {}) };
+          const faltas = Object.values(map).filter(v => v === false).length;
+          return { ...al, asistencias: map, faltas };
+        });
+      } catch (e) {
+        console.error('Error cargando asistencias:', e);
+        this.alumnosData = [];
+        this.fechasData = [];
+      }
+    },
     actualizarFaltas(alumno) {
       const asist = alumno.asistencias || {};
       const totalFaltas = Object.values(asist).filter(v => v === false).length;
@@ -268,6 +299,15 @@ export default {
         .firmas .cargo { font-size: 11px; }
       `;
     }
+  },
+  watch: {
+    clubSeleccionado() {
+      this.loadAsistencias();
+    }
+  },
+  mounted() {
+    // si ya hay un club seleccionado inicial, cargar
+    if (this.clubSeleccionado) this.loadAsistencias();
   }
 };
 </script>
