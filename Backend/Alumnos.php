@@ -41,12 +41,23 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
   if ($method === 'GET') {
-    // Listado simple de alumnos
+     // Listado de alumnos, con filtro opcional por club y orden por apellidos
     $rows = [];
-    $sql = 'SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos ORDER BY id DESC';
-    if ($res = $conexion->query($sql)) {
+
+    if (isset($_GET['club_id']) && $_GET['club_id'] !== '') {
+      $clubId = (int)$_GET['club_id'];
+      $stmt = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos WHERE id_club = ? ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC');
+      $stmt->bind_param('i', $clubId);
+      $stmt->execute();
+      $res = $stmt->get_result();
       while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+    } else {
+      $sql = 'SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC';
+      if ($res = $conexion->query($sql)) {
+        while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+      }
     }
+
     echo json_encode(['data' => $rows]);
     exit;
   }

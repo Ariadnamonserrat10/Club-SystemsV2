@@ -114,7 +114,7 @@ if ($tipo === 'OFICINA') {
     $stmt = $conexion->prepare($query);
 
     $stmt->bind_param(
-        "sssssiississ",
+        "sssssiisssis",
         $nombre,
         $apellidoP,
         $apellidoM,
