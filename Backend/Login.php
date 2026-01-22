@@ -21,10 +21,17 @@ if (!$data) {
 
 $usuario = trim($data["usuario"] ?? "");
 $password = (string)($data["password"] ?? $data["contrasena"] ?? "");
+$userType = trim($data["userType"] ?? "");
 
 if ($usuario === '' || $password === '') {
   http_response_code(422);
   echo json_encode(["status" => "error", "message" => "Usuario y contraseña requeridos"]);
+  exit;
+}
+
+if ($userType === '') {
+  http_response_code(422);
+  echo json_encode(["status" => "error", "message" => "Debes seleccionar un área (Oficina o Monitor)"]);
   exit;
 }
 
@@ -33,7 +40,7 @@ $stmt = $conexion->prepare(
   "SELECT u.id, u.nombre, u.apellidoP, u.apellidoM, u.tipo, u.foto, u.password, u.club_asignado, c.nombre AS club_nombre
    FROM usuarios u
    LEFT JOIN clubs c ON u.club_asignado = c.id
-   WHERE u.usuario = ?"
+   WHERE BINARY u.usuario = ?"
 );
 if (!$stmt) {
   http_response_code(500);
@@ -47,7 +54,7 @@ $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
   http_response_code(401);
-  echo json_encode(["status" => "error", "message" => "Usuario no encontrado"]);
+  echo json_encode(["status" => "error", "message" => "El usuario no existe"]);
   exit;
 }
 
@@ -55,7 +62,24 @@ $user = $result->fetch_assoc();
 
 if (!password_verify($password, $user['password'])) {
   http_response_code(401);
-  echo json_encode(["status" => "error", "message" => "Contraseña incorrecta"]);
+  echo json_encode(["status" => "error", "message" => "La contraseña es incorrecta"]);
+  exit;
+}
+
+// Validar que el tipo de usuario seleccionado coincida con el tipo en la BD
+$userTypeDB = strtoupper($user['tipo']);
+$userTypeSelected = strtoupper($userType);
+
+// Mapear valores: "oficina" -> "OFICINA", "monitor" -> "MONITOR"
+if ($userTypeSelected === "OFICINA") {
+  $userTypeSelected = "OFICINA";
+} elseif ($userTypeSelected === "MONITOR") {
+  $userTypeSelected = "MONITOR";
+}
+
+if ($userTypeDB !== $userTypeSelected) {
+  http_response_code(403);
+  echo json_encode(["status" => "error", "message" => "Este usuario es de tipo " . strtolower($userTypeDB) . ", pero seleccionaste " . strtolower($userTypeSelected) . ". Por favor, selecciona el área correcta."]);
   exit;
 }
 
