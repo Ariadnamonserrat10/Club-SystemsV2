@@ -24,26 +24,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(alumno, index) in alumnosClub" :key="index">
+          <tr v-for="(alumno, index) in alumnosClub" :key="alumno.id || alumno.control || (alumno.nombre + '-' + alumno.apellidoP + '-' + alumno.apellidoM + '-' + index)">
             <td>
               {{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}
             </td>
             <td v-for="fecha in fechasCols" :key="fecha" class="text-center">
-              <span
-                v-if="alumno.asistencias && alumno.asistencias[fecha]"
-                class="text-success fw-bold"
-                style="font-size: 1.5rem"
-                >✔</span
-              >
-              <span v-else class="text-danger fw-bold" style="font-size: 1.5rem"
-                >✖</span
-              >
-              <span
-                v-if="alumno.asistencias && alumno.asistencias[fecha]"
-                class="text-success fw-bold"
-                >✔</span
-              >
-              <span v-else class="text-danger fw-bold">✖</span>
+              <span v-if="alumno.asistencias && alumno.asistencias[fecha]" class="text-success fw-bold" style="font-size: 1.5rem">✔</span>
+              <span v-else class="text-danger fw-bold" style="font-size: 1.5rem">✖</span>
             </td>
             <td>
               <span
@@ -405,10 +392,13 @@ export default {
   },
   methods: {
     async loadAsistencias() {
+      // Limpiar datos anteriores para evitar mezcla visual mientras se actualiza
+      this.alumnosData = [];
       const club = (this.clubs || []).find(c => c.nombre === this.clubSeleccionado);
+
+      // Si no hay club o ID, usar los datos de props como respaldo
       if (!club || !club.id) {
-        this.alumnosData = [];
-        // Si no hay club, cargar desde props
+        this.fechasData = [];
         if (this.alumnos && this.alumnos.length) {
           const alumnosDelClub = this.alumnos.filter(a => a.club === this.clubSeleccionado);
           this.alumnosData = alumnosDelClub.map(a => ({
@@ -419,13 +409,6 @@ export default {
         } else {
           this.alumnosData = [];
         }
-        return;
-      const club = (this.clubs || []).find(
-        (c) => c.nombre === this.clubSeleccionado,
-      );
-      if (!club || !club.id) {
-        this.alumnosData = [];
-        this.fechasData = [];
         return;
       }
 
@@ -552,6 +535,9 @@ export default {
       } else {
         html2pdf().set(opt).from(nodo).save();
       }
+    },
+    descargarTodas() {
+      console.warn('Descargar todas (PDF) no implementado');
     },
     printStyles() {
       return `
