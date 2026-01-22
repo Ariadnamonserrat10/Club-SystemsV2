@@ -191,11 +191,11 @@ export default {
             this.$router.push("/monitor");
           }
         } else {
-          console.log("❌ Login rechazado:", response.data);
+          console.log("Login rechazado:", response.data);
           this.showMessage('error', response.data.message || "Error al iniciar sesión");
         }
       } catch (error) {
-        console.error("❌ Error en POST:", error);
+        console.error("Error en POST:", error);
         console.error("Response data:", error.response?.data);
         console.error("Status:", error.response?.status);
         this.showMessage('error', error.response?.data?.message || "No se pudo conectar al servidor");

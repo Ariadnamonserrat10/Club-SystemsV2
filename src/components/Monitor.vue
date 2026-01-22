@@ -134,10 +134,16 @@ export default {
     alumnosClub() {
       // Ya vienen filtrados por club desde backend; asegurar asistencias y faltas
       return (this.alumnosData || []).map((a) => {
-        if (!a.asistencias) a.asistencias = {};
+        if (!a.asistencias) {
+          a.asistencias = {};
+        }
+        // Inicializar para todas las fechas
         this.fechasData.forEach((f) => {
-          if (!(f in a.asistencias)) a.asistencias[f] = false;
+          if (!(f in a.asistencias)) {
+            a.asistencias[f] = false;
+          }
         });
+        // Recalcular faltas
         a.faltas = Object.values(a.asistencias).filter((v) => v === false).length;
         return a;
       });
@@ -173,32 +179,65 @@ export default {
 
     async loadAsistencias() {
       const clubId = this.usuarioActual.club_asignado;
-      if (!clubId) return;
+      if (!clubId) {
+        console.log('No hay club asignado');
+        return;
+      }
       try {
+        console.log('Cargando asistencias para club:', clubId);
+        
         // 1) Cargar alumnos por club (garantiza lista aunque no haya asistencias)
         let alumnosClub = [];
         try {
           const res = await fetch(`/api/Alumnos.php?club_id=${encodeURIComponent(clubId)}`);
           const json = await res.json();
+          console.log('Respuesta de Alumnos.php:', json);
           if (res.ok && json && Array.isArray(json.data)) {
             alumnosClub = json.data;
+            console.log('Alumnos cargados:', alumnosClub.length);
           }
-        } catch {}
+        } catch (e) {
+          console.error('Error cargando alumnos por club:', e);
+        }
 
         // 2) Cargar asistencias por club
         const data = await getAsistenciasPorClub(clubId);
+        console.log('Datos de asistencias:', data);
+        console.log('DEBUG desde backend:', data._debug);
+        
         // fechas en ISO yyyy-mm-dd
-        this.fechasData = Array.isArray(data.fechas) ? data.fechas : [];
+        const nuevasFechas = Array.isArray(data.fechas) ? data.fechas : [];
+        console.log('Nuevas fechas desde BD:', nuevasFechas);
+        
+        // Mantener fechas existentes + agregar nuevas de la BD
+        this.fechasData = [...new Set([...this.fechasData, ...nuevasFechas])].sort();
+        console.log('Fechas actuales después de merge:', this.fechasData);
 
         // Preferir alumnos del endpoint de asistencias si vienen, si no usar los de alumnos por club
         const alumnos = (Array.isArray(data.alumnos) && data.alumnos.length) ? data.alumnos : alumnosClub;
+        console.log('Total de alumnos a mostrar:', alumnos.length);
+        
         const asist = data.asistencias || {};
 
         // Mapear estructura de asistencias por alumno y fecha
-        this.alumnosData = (alumnos || []).map((al) => {
+        const alumnosMappeados = (alumnos || []).map((al) => {
           const map = { ...(asist[al.id] || {}) };
+          // Asegurar que todas las fechas estén presentes
+          this.fechasData.forEach(fecha => {
+            if (!(fecha in map)) {
+              map[fecha] = false;
+            }
+          });
           return { ...al, asistencias: map, faltas: Object.values(map).filter(v => v === false).length };
         });
+        
+        // Asignar directamente (Vue 3 es reactivo por default)
+        this.alumnosData = alumnosMappeados;
+        console.log('alumnosData actualizado:', this.alumnosData.length);
+        
+        // Forzar actualización
+        this.$forceUpdate();
+        
       } catch (e) {
         console.error('Error cargando asistencias:', e);
         this.mostrarMensaje('No se pudieron cargar asistencias', 'alert-danger');
@@ -241,6 +280,9 @@ export default {
         return;
       }
       const fechaISO = this.nuevaFecha; // YYYY-MM-DD desde input type="date"
+      console.log('Intentando agregar fecha:', fechaISO);
+      console.log('Fecha ya existe?', this.fechasData.includes(fechaISO));
+      
       if (this.fechasData.includes(fechaISO)) {
         this.mostrarMensaje("La fecha ya está registrada.", "alert-danger");
         return;
@@ -248,32 +290,67 @@ export default {
       try {
         // crear registros default (presente=false) para cada alumno del club
         const registros = this.alumnosClub.map(a => ({ alumno_id: a.id, presente: false }));
-        await crearFechaAsistencias({ club_id: this.usuarioActual.club_asignado, fecha: fechaISO, registros });
-        // recargar desde backend para visualizar
-        await this.loadAsistencias();
+        console.log('Enviando registros:', registros);
+        
+        const respuesta = await crearFechaAsistencias({ club_id: this.usuarioActual.club_asignado, fecha: fechaISO, registros });
+        console.log('Respuesta del servidor:', respuesta);
+        console.log('Fecha creada en backend');
+        
+        // Agregar la fecha localmente SIN recargar todo
+        this.fechasData.push(fechaISO);
+        this.fechasData.sort();
+        console.log('Fecha agregada localmente. fechasData ahora:', this.fechasData);
+        
+        // Inicializar asistencia para la nueva fecha en todos los alumnos (sin borrar las anteriores)
+        this.alumnosData.forEach(alumno => {
+          if (!alumno.asistencias) {
+            alumno.asistencias = {};
+          }
+          // Solo agregar si no existe
+          if (!(fechaISO in alumno.asistencias)) {
+            alumno.asistencias[fechaISO] = false;
+          }
+        });
+        
+        this.$forceUpdate();
         this.nuevaFecha = "";
         this.mostrarMensaje("Fecha agregada correctamente.", "alert-success");
       } catch (e) {
         console.error('Error creando fecha:', e);
-        this.mostrarMensaje("No se pudo crear la fecha.", "alert-danger");
+        console.error('Detalles del error:', JSON.stringify(e));
+        this.mostrarMensaje("No se pudo crear la fecha: " + (e.message || e), "alert-danger");
       }
     },
     async actualizarFaltas(alumno) {
       // Este método se dispara al cambiar un checkbox
       alumno.faltas = Object.values(alumno.asistencias).filter((v) => v === false).length;
-      try {
-        // Detectar la última fecha cambiada no es trivial; se usa delegación por evento individual
-        // Este método es llamado por cada checkbox con v-model, por lo que se actualizará la pareja alumno/fecha específica
-        // En lugar de inferir, enviamos todas las asistencias de ese alumno para las fechas existentes (opcional)
-        // Aquí implementamos una aproximación simple: actualizar individualmente por cada fecha cambiada usando el evento @change por celda.
-        // El evento no da la fecha; pero el handler está atado por celda, así que lo mejor es crear un método específico por celda.
-      } catch (e) {
-        console.error('Error actualizando faltas:', e);
-      }
     },
-    guardarCambios() {
-      // Ya no se usa LocalStorage; mantener botón por compatibilidad visual
-      this.mostrarMensaje("Cambios guardados.", "alert-info");
+    async guardarCambios() {
+      try {
+        console.log('Guardando cambios...');
+        // Guardar todas las asistencias de todos los alumnos para todas las fechas
+        const promesas = [];
+        
+        for (const alumno of this.alumnosData) {
+          for (const fecha of this.fechasData) {
+            const presente = !!alumno.asistencias[fecha];
+            promesas.push(
+              actualizarAsistencia({ 
+                alumno_id: alumno.id, 
+                fecha, 
+                presente 
+              }).catch(e => console.error(`Error guardando ${alumno.id} en ${fecha}:`, e))
+            );
+          }
+        }
+        
+        await Promise.all(promesas);
+        console.log('Todos los cambios guardados en BD');
+        this.mostrarMensaje("Cambios guardados correctamente.", "alert-success");
+      } catch (e) {
+        console.error('Error guardando cambios:', e);
+        this.mostrarMensaje("Error al guardar cambios.", "alert-danger");
+      }
     },
     async onToggleAsistencia(alumno, fecha) {
       const presente = !!alumno.asistencias[fecha];
