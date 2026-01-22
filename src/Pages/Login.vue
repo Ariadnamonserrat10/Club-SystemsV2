@@ -172,7 +172,8 @@ export default {
           "/api/Login.php",
           {
             usuario: this.usuario,
-            password: this.password
+            password: this.password,
+            userType: this.selectedUserType
           }
         );
 
