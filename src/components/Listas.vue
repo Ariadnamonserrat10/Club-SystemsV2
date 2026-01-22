@@ -416,6 +416,8 @@ export default {
             asistencias: a.asistencias || {},
             faltas: Object.values(a.asistencias || {}).filter(v => v === false).length
           }));
+        } else {
+          this.alumnosData = [];
         }
         return;
       const club = (this.clubs || []).find(
@@ -426,6 +428,7 @@ export default {
         this.fechasData = [];
         return;
       }
+
       try {
         const data = await getAsistenciasPorClub(club.id);
         this.fechasData = Array.isArray(data.fechas) ? data.fechas : [];
@@ -449,6 +452,7 @@ export default {
         }
       } catch (e) {
         console.error('Error cargando asistencias:', e);
+        this.fechasData = [];
         // Si hay error, cargar desde props
         if (this.alumnos && this.alumnos.length) {
           const alumnosDelClub = this.alumnos.filter(a => a.club === this.clubSeleccionado);
@@ -460,16 +464,6 @@ export default {
         } else {
           this.alumnosData = [];
         }
-        const asist = data.asistencias || {};
-        this.alumnosData = alumnos.map((al) => {
-          const map = { ...(asist[al.id] || {}) };
-          const faltas = Object.values(map).filter((v) => v === false).length;
-          return { ...al, asistencias: map, faltas };
-        });
-      } catch (e) {
-        console.error("Error cargando asistencias:", e);
-        this.alumnosData = [];
-        this.fechasData = [];
       }
     },
     actualizarFaltas(alumno) {

@@ -482,7 +482,6 @@ export default {
 
       // Fallback a props
       return (this.alumnos || []).filter(a => a.club === clubName);
-      return (this.alumnos || []).filter((a) => a.club === clubName);
     },
     downloadAll() {
       const rows = [];
@@ -628,8 +627,6 @@ export default {
   mounted() {
     this.loadAsistenciasPorClubs();
   }
-    },
-  },
 };
 </script>
 
