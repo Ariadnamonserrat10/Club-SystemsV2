@@ -47,21 +47,6 @@
               <td v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" class="text-center">
                 <span v-if="alumno.asistencias?.[fecha]" class="text-success fw-bold" style="font-size: 1.5rem;">✔</span>
                 <span v-else class="text-danger fw-bold" style="font-size: 1.5rem;">✖</span>
-            <tr
-              v-for="(alumno, i) in filteredAlumnos(club.nombre)"
-              :key="'c-' + i"
-            >
-              <td>
-                {{ alumno.nombre }} {{ alumno.apellidoP }}
-                {{ alumno.apellidoM }}
-              </td>
-              <td v-for="fecha in fechas" :key="fecha">
-                <span
-                  v-if="alumno.asistencias?.[fecha]"
-                  class="text-success fw-bold"
-                  >✔</span
-                >
-                <span v-else class="text-danger fw-bold">✖</span>
               </td>
               <td>
                 <span
@@ -449,7 +434,6 @@ export default {
       
       // Fallback a props
       return (this.alumnos || []).filter(a => a.club === clubName);
-      return (this.alumnos || []).filter((a) => a.club === clubName);
     },
     downloadAll() {
       const rows = [];
@@ -595,8 +579,6 @@ export default {
   mounted() {
     this.loadAsistenciasPorClubs();
   }
-    },
-  },
 };
 </script>
 
