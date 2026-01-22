@@ -7,145 +7,147 @@ header("Content-Type: application/json; charset=utf-8");
 include __DIR__ . "/db.php";
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-  http_response_code(204);
-  exit; // preflight
+    http_response_code(204);
+    exit;
 }
 
-$data = json_decode(file_get_contents("php://input"), true);
+$input = json_decode(file_get_contents("php://input"), true);
 
-// Depuración opcional: habilita con ?debug=1 para ver payload recibido
-if (isset($_GET['debug']) && $_GET['debug'] == '1') {
-  header("Content-Type: application/json; charset=utf-8");
-  echo json_encode(["debug_payload" => $data], JSON_UNESCAPED_UNICODE);
-  exit;
+if (!$input) {
+    http_response_code(400);
+    echo json_encode(["status" => "error", "message" => "No se recibieron datos"]);
+    exit;
 }
 
-if (!$data) {
-  http_response_code(400);
-  echo json_encode(["status" => "error", "message" => "No se recibieron datos"]);
-  exit;
-}
+// Normalizar campos
+$nombre = trim($input['nombre'] ?? '');
+$apellidoP = trim($input['apellidoP'] ?? '');
+$apellidoM = trim($input['apellidoM'] ?? '');
+$numeroControl = trim($input['numeroControl'] ?? '');
+$telefono = trim($input['telefono'] ?? '');
+$carrera_id = isset($input['carrera']) ? (int)$input['carrera'] : null;
+$semestre_id = isset($input['semestre']) ? (int)$input['semestre'] : null;
+$usuario = trim($input['usuario'] ?? '');
+$password_raw = (string)($input['password'] ?? '');
+$tipo = strtoupper(trim($input['tipo'] ?? 'OFICINA'));
+$club_asignado = isset($input['club_asignado']) ? (int)$input['club_asignado'] : null;
+$foto = trim($input['foto'] ?? null);
 
-$nombre = trim($data["nombre"] ?? $data["Nombre"] ?? "");
-$apellidoP = trim($data["apellidoP"] ?? $data["apellido_paterno"] ?? $data["apellidoPaterno"] ?? "");
-$apellidoM = trim($data["apellidoM"] ?? $data["apellido_materno"] ?? $data["apellidoMaterno"] ?? "");
-$tipo = strtoupper(trim($data["tipo"] ?? $data["tipo_usuario"] ?? $data["tipoUsuario"] ?? ""));
-$usuario = trim($data["usuario"] ?? $data["Usuario"] ?? "");
-$password_raw = (string)($data["password"] ?? $data["contrasena"] ?? $data["contrasenaPlano"] ?? "");
-
-// Campos MONITOR opcionales
-$numeroControl = trim($data["numeroControl"] ?? $data["numero_control"] ?? $data["numControl"] ?? "");
-$telefono = trim($data["telefono"] ?? $data["tel"] ?? "");
-$carrera_id = $data["carrera_id"] ?? $data["carreraId"] ?? null;
-$semestre_id = $data["semestre_id"] ?? $data["semestreId"] ?? null;
-
-// Validaciones base
-if ($nombre === '' || $apellidoP === '' || $apellidoM === '' || $tipo === '' || $usuario === '') {
-  http_response_code(422);
-  echo json_encode([
-    "status" => "error",
-    "message" => "Faltan datos obligatorios (nombre, apellidos, tipo, usuario)",
-    "campos_recibidos" => [
-      "nombre" => $nombre,
-      "apellidoP" => $apellidoP,
-      "apellidoM" => $apellidoM,
-      "tipo" => $tipo,
-      "usuario" => $usuario
-    ]
-  ]);
-  exit;
-}
-
-if ($password_raw === '') {
-  http_response_code(422);
-  echo json_encode(["status" => "error", "message" => "Contraseña vacía"]);
-  exit;
-}
-
-if (!in_array($tipo, ['OFICINA','MONITOR'], true)) {
-  http_response_code(422);
-  echo json_encode(["status" => "error", "message" => "Tipo inválido. Use OFICINA o MONITOR"]);
-  exit;
-}
-
-// Reglas específicas para MONITOR
-if ($tipo === 'MONITOR') {
-  if ($numeroControl === '') {
+// Validaciones básicas
+if ($nombre === '' || $apellidoP === '' || $usuario === '' || $password_raw === '') {
     http_response_code(422);
-    echo json_encode(["status" => "error", "message" => "numeroControl es obligatorio para MONITOR"]);
+    echo json_encode(["status" => "error", "message" => "Faltan campos requeridos"]);
     exit;
-  }
 }
 
-// Normalizar enteros opcionales (NULL si no vienen)
-$carrera_id = ($carrera_id === '' || $carrera_id === null) ? null : (int)$carrera_id;
-$semestre_id = ($semestre_id === '' || $semestre_id === null) ? null : (int)$semestre_id;
-
-$hash = password_hash($password_raw, PASSWORD_BCRYPT);
-
-// Verificar duplicados: usuario y numeroControl (si aplica)
-// 1) usuario
-$stmt_check_u = $conexion->prepare("SELECT id FROM usuarios WHERE usuario = ?");
-if (!$stmt_check_u) {
-  http_response_code(500);
-  echo json_encode(["status" => "error", "message" => "Error preparando verificación usuario: " . $conexion->error]);
-  exit;
-}
-$stmt_check_u->bind_param("s", $usuario);
-$stmt_check_u->execute();
-$stmt_check_u->store_result();
-if ($stmt_check_u->num_rows > 0) {
-  http_response_code(409);
-  echo json_encode(["status" => "error", "message" => "Usuario ya registrado"]);
-  exit;
+// Verificar duplicados: usuario
+$q = "SELECT id FROM usuarios WHERE usuario = ?";
+$stmtc = $conexion->prepare($q);
+$stmtc->bind_param("s", $usuario);
+$stmtc->execute();
+$stmtc->store_result();
+if ($stmtc->num_rows > 0) {
+    echo json_encode(["status" => "error", "message" => "Nombre de usuario ya registrado"]);
+    exit;
 }
 
-// 2) numeroControl sólo para MONITOR
-if ($tipo === 'MONITOR') {
-  $stmt_check_nc = $conexion->prepare("SELECT id FROM usuarios WHERE numeroControl = ?");
-  if (!$stmt_check_nc) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando verificación numeroControl: " . $conexion->error]);
-    exit;
-  }
-  $stmt_check_nc->bind_param("s", $numeroControl);
-  $stmt_check_nc->execute();
-  $stmt_check_nc->store_result();
-  if ($stmt_check_nc->num_rows > 0) {
-    http_response_code(409);
-    echo json_encode(["status" => "error", "message" => "numeroControl ya registrado"]);
-    exit;
-  }
+// Verificar duplicados: número de control (si aplica)
+if ($numeroControl !== '') {
+    $q2 = "SELECT id FROM usuarios WHERE numeroControl = ?";
+    $stmtc2 = $conexion->prepare($q2);
+    $stmtc2->bind_param("s", $numeroControl);
+    $stmtc2->execute();
+    $stmtc2->store_result();
+    if ($stmtc2->num_rows > 0) {
+        echo json_encode(["status" => "error", "message" => "Número de control ya registrado"]);
+        exit;
+    }
 }
 
-// Inserción
-if ($tipo === 'MONITOR') {
-  $sql = "INSERT INTO usuarios (nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, usuario, password, tipo)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-  $stmt = $conexion->prepare($sql);
-  if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando inserción: " . $conexion->error]);
-    exit;
-  }
-  // Para permitir NULL en ints, usamos bind_param con tipos y pasamos variables que pueden ser NULL mediante set to null y usar 'i' aceptará 0; para NULL verdadero, usaremos bind con mysqli_stmt::bind_param y luego setear -> send_long_data no aplica. Simplificamos: si null, pasamos NULL con $stmt->bind_param no soporta directamente; usamos ->bind_param y luego ->execute() con ->bind_param admite null si la variable es NULL y mysqlnd lo permite.
-  $stmt->bind_param("sssssiisss", $nombre, $apellidoP, $apellidoM, $numeroControl, $telefono, $carrera_id, $semestre_id, $usuario, $hash, $tipo);
-} else { // OFICINA
-  $sql = "INSERT INTO usuarios (nombre, apellidoP, apellidoM, usuario, password, tipo)
-          VALUES (?, ?, ?, ?, ?, ?)";
-  $stmt = $conexion->prepare($sql);
-  if (!$stmt) {
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Error preparando inserción: " . $conexion->error]);
-    exit;
-  }
-  $stmt->bind_param("ssssss", $nombre, $apellidoP, $apellidoM, $usuario, $hash, $tipo);
-}
+// Hashear contraseña
+$password_hash = password_hash($password_raw, PASSWORD_BCRYPT);
 
-if ($stmt->execute()) {
-  echo json_encode(["status" => "success", "message" => "Usuario registrado exitosamente", "id" => $stmt->insert_id ?? null]);
+// Normalizar valores nulos
+$telefono_val = $telefono !== '' ? $telefono : null;
+$carrera_val = $carrera_id !== null ? $carrera_id : null;
+$semestre_val = $semestre_id !== null ? $semestre_id : null;
+$club_val = $club_asignado !== null ? $club_asignado : null;
+$foto_val = $foto !== '' ? $foto : null;
+
+/////////////////////////////////////////////////////////////////////////////////////
+//   SEPARACIÓN DE CASOS SEGÚN TIPO DE USUARIO
+/////////////////////////////////////////////////////////////////////////////////////
+
+if ($tipo === 'OFICINA') {
+
+    //////////////////////////////////////////////////////
+    // CASO 1: USUARIO TIPO OFICINA
+    //////////////////////////////////////////////////////
+
+    $query = "INSERT INTO usuarios 
+        (nombre, apellidoP, apellidoM, usuario, password, tipo, foto)
+        VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conexion->prepare($query);
+
+    $stmt->bind_param(
+        "sssssss",
+        $nombre,
+        $apellidoP,
+        $apellidoM,
+        $usuario,
+        $password_hash,
+        $tipo,
+        $foto_val
+    );
+
 } else {
-  http_response_code(500);
-  echo json_encode(["status" => "error", "message" => "Error al registrar usuario: " . $stmt->error]);
+
+    //////////////////////////////////////////////////////
+    // CASO 2: MONITOR / ALUMNO / OTROS TIPOS
+    //////////////////////////////////////////////////////
+
+    $query = "INSERT INTO usuarios 
+        (nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, usuario, password, tipo, club_asignado, foto)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conexion->prepare($query);
+
+    $stmt->bind_param(
+        "sssssiisssis",
+        $nombre,
+        $apellidoP,
+        $apellidoM,
+        $numeroControl,
+        $telefono_val,
+        $carrera_val,
+        $semestre_val,
+        $usuario,
+        $password_hash,
+        $tipo,
+        $club_val,
+        $foto_val
+    );
 }
+
+/////////////////////////////////////////////////////////////////////////////////////
+//   EJECUCIÓN DE LA CONSULTA
+/////////////////////////////////////////////////////////////////////////////////////
+
+try {
+    if ($stmt->execute()) {
+        echo json_encode([
+            "status" => "success",
+            "message" => "Usuario registrado exitosamente",
+            "id" => $stmt->insert_id
+        ]);
+    } else {
+        http_response_code(500);
+        echo json_encode(["status" => "error", "message" => "Error al registrar usuario: " . $stmt->error]);
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Excepción: " . $e->getMessage()]);
+}
+
 ?>
