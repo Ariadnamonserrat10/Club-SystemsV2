@@ -25,9 +25,15 @@
         </thead>
         <tbody>
           <tr v-for="(alumno, index) in alumnosClub" :key="index">
-            <td>{{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}</td>
+            <td>
+              {{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}
+            </td>
             <td v-for="fecha in fechasCols" :key="fecha" class="text-center">
-              <span v-if="alumno.asistencias && alumno.asistencias[fecha]" class="text-success fw-bold">✔</span>
+              <span
+                v-if="alumno.asistencias && alumno.asistencias[fecha]"
+                class="text-success fw-bold"
+                >✔</span
+              >
               <span v-else class="text-danger fw-bold">✖</span>
             </td>
             <td>
@@ -35,17 +41,16 @@
                 class="badge"
                 :class="alumno.faltas < 3 ? 'bg-success' : 'bg-danger'"
               >
-                {{ alumno.faltas < 3 ? 'Acreditado' : 'No acreditado' }}
+                {{ alumno.faltas < 3 ? "Acreditado" : "No acreditado" }}
               </span>
             </td>
             <td>
               <button
-                class="btn btn-sm"
-                :class="alumno.faltas < 3 ? 'btn-outline-success' : 'btn-outline-secondary'"
+                class="btn btn-sm btn-outline-info"
                 :disabled="alumno.faltas >= 3"
-                @click="imprimirConstancia(alumno)"
+                @click="descargarConstancia(alumno)"
               >
-                Imprimir
+                Descargar
               </button>
             </td>
           </tr>
@@ -53,8 +58,8 @@
       </table>
 
       <div class="text-end mt-3">
-        <button class="btn btn-primary" @click="imprimirTodas">
-          Imprimir todas las constancias
+        <button class="btn btn-success" @click="descargarTodas">
+          Descargar todas (PDF)
         </button>
       </div>
     </div>
@@ -65,79 +70,273 @@
 
     <!-- Vista previa / Plantilla imprimible -->
     <div v-if="previewData" class="print-preview">
-      <div class="constancia A4" id="constancia">
-        <div class="header">
-          <div class="logos">
-            <div class="logo izq"></div>
-            <div class="titulos">
-              <div class="top-row">
-                <span>TECNOLÓGICO NACIONAL DE MÉXICO</span>
-                <span>INSTITUTO TECNOLÓGICO DE TLAXIACO</span>
-              </div>
-              <div class="meta">
-                <div>Referencia a la Norma ISO 9001:2015 8.1</div>
-                <div>Código:TecNM-VI-PO-003-05</div>
-                <div>TecNM-VI-PO-003-05 Rev. 0</div>
-              </div>
+      <div class="preview-documento">
+        <div class="constancia A4" id="constancia">
+          <!-- ENCABEZADO CON TABLA Y LOGO -->
+          <table
+            class="tabla-encabezado"
+            cellpadding="8"
+            cellspacing="0"
+            style="
+              width: 100%;
+              border-collapse: collapse;
+              font-family: Arial, sans-serif;
+              font-size: 9pt;
+            "
+          >
+            <tr>
+              <!-- Logo -->
+              <td
+                rowspan="2"
+                style="
+                  border: 1px solid;
+                  width: 90px;
+                  text-align: center;
+                  vertical-align: middle;
+                "
+              >
+                <img
+                  src="../Img/Logo.jpg"
+                  alt="Logo"
+                  style="max-width: 70px; height: auto"
+                />
+              </td>
+
+              <!-- Título -->
+              <td style="border: 1px solid; vertical-align: middle">
+                Constancia de cumplimiento de actividad Cultural y/o Deportiva
+              </td>
+
+              <!-- Código / Revisión / Página -->
+              <td
+                rowspan="2"
+                style="
+                  border: 1px solid;
+                  width: 32%;
+                  vertical-align: top;
+                  padding: 0;
+                "
+              >
+                <table
+                  style="width: 100%; border-collapse: collapse; font-size: 8pt"
+                >
+                  <tr>
+                    <td
+                      style="
+                        border-bottom: 1px solid;
+                        padding: 6px;
+                        white-space: nowrap;
+                      "
+                    >
+                      <strong>Código:TecNM-VI-PO-003-05</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="border-bottom: 1px solid; padding: 6px">
+                      Revisión: 0
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px">Página 1 de 1</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <!-- Norma -->
+              <td style="border: 1px solid; vertical-align: middle">
+                Referencia a la Norma ISO 9001:2015&nbsp;&nbsp;&nbsp;8.1
+              </td>
+            </tr>
+          </table>
+
+          <h2
+            class="titulo-constancia"
+            style="font-size: 11pt; margin: 60px 0 15px 0"
+          >
+            CONSTANCIA DE CUMPLIMIENTO DE ACTIVIDAD CULTURAL Y/O DEPORTIVA
+          </h2>
+
+          <div class="espacios-mediano"></div>
+
+          <div class="cuerpo">
+            <p
+              class="destinatario"
+              style="font-size: 10pt; margin: 0 0 20px 0; line-height: 1.6"
+            >
+              C. BLANCA ANSELMA CASTRO CASTRO<br />
+              JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br />
+              PRESENTE
+            </p>
+
+            <div class="espacios"></div>
+
+            <p class="texto justificado">
+              La que suscribe Olimpia Cruz Reyes, Jefa del Departamento de
+              Actividades Extraescolares, por este medio se permite hacer de su
+              conocimiento que la estudiante
+              <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con
+              número de control
+              <strong>{{ toUpper(previewData.numeroControl) }}</strong> de la
+              carrera de <strong>{{ toUpper(previewData.carrera) }}</strong
+              >, ha cumplido su actividad extraescolar en el club de
+              <strong>{{ toUpper(previewData.club) }}</strong> con el nivel de
+              desempeño <strong>{{ toUpper(previewData.desempeno) }}</strong> y
+              un valor numérico de
+              <strong>{{ desempenoValor(previewData.desempeno) }}</strong>
+              durante el periodo escolar
+              <strong>{{ toUpper(previewData.periodo) }}</strong
+              >, con un valor curricular de 1 crédito.
+            </p>
+
+            <div class="espacios"></div>
+
+            <p class="lugar-fecha">
+              Se extiende la presente en la Heroica ciudad de Tlaxiaco a los
+              {{ fechaHoy.dia }} días del mes de {{ fechaHoy.mes }} de
+              {{ fechaHoy.anio }}.
+            </p>
+
+            <div class="espacios-firma"></div>
+
+            <table
+              class="tabla-firmas"
+              style="width: 100%; border-collapse: collapse"
+            >
+              <tr>
+                <td
+                  style="
+                    width: 50%;
+                    text-align: center;
+                    vertical-align: top;
+                    padding: 0;
+                    border: none;
+                  "
+                >
+                  ATENTAMENTE
+                </td>
+                <td
+                  style="
+                    width: 50%;
+                    text-align: center;
+                    vertical-align: top;
+                    padding: 0;
+                    border: none;
+                  "
+                >
+                  Vo. Bo.
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2" class="espacios-firma-grandes"></td>
+              </tr>
+              <tr>
+                <td
+                  style="
+                    width: 50%;
+                    text-align: center;
+                    vertical-align: top;
+                    padding: 0;
+                    border: none;
+                  "
+                >
+                  <div class="linea-firma"></div>
+                  <div class="nombre-firma">FERNANDO JAIR MENDOZA JIMENEZ</div>
+                  <div class="cargo-firma">
+                    JEFE DE LA OFICINA DE PROMOCIÓN DEPORTIVA
+                  </div>
+                </td>
+                <td
+                  style="
+                    width: 50%;
+                    text-align: center;
+                    vertical-align: top;
+                    padding: 0;
+                    border: none;
+                  "
+                >
+                  <div class="linea-firma"></div>
+                  <div class="nombre-firma">OLIMPIA CRUZ REYES</div>
+                  <div class="cargo-firma">
+                    JEFA DEL DEPTO. DE ACTIVIDADES EXTRAESCOLARES
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <div class="pie-pagina">
+              c.c.p. Jefe (a) de Departamento Correspondiente
             </div>
-            <div class="logo der"></div>
-          </div>
-          <div class="separador"></div>
-          <h2>CONSTANCIA DE CUMPLIMIENTO DE ACTIVIDAD CULTURAL Y/O DEPORTIVA</h2>
-        </div>
 
-        <div class="cuerpo">
-          <p class="destinatario">
-            C. BLANCA ANSELMA CASTRO CASTRO<br/>
-            JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br/>
-            PRESENTE
-          </p>
-
-          <p class="texto justificado">
-            La que suscribe Olimpia Cruz Reyes, Jefa del Departamento de Actividades Extraescolares, por este medio se permite hacer de su conocimiento que la estudiante
-            <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con número de control <strong>{{ toUpper(previewData.numeroControl) }}</strong> de la carrera de <strong>{{ toUpper(previewData.carrera) }}</strong>, ha cumplido su actividad extraescolar en el club de <strong>{{ toUpper(previewData.club) }}</strong> con el nivel de desempeño <strong>{{ toUpper(previewData.desempeno) }}</strong> y un valor numérico de <strong>{{ desempenoValor(previewData.desempeno) }}</strong> durante el periodo escolar <strong>{{ toUpper(previewData.periodo) }}</strong>, como actividad <strong>{{ toUpper(previewData.tipoActividad || tipoActividad(previewData.club)) }}</strong>, con un valor curricular de 1 crédito.
-          </p>
-
-          <p class="lugar-fecha">
-            Se extiende la presente en la Heroica ciudad de Tlaxiaco a los {{ fechaHoy.dia }} días del mes de {{ fechaHoy.mes }} de {{ fechaHoy.anio }}.
-          </p>
-
-          <div class="firmas">
-            <div class="col">
-              <div class="linea"></div>
-              <div class="nombre">FERNANDO JAIR MENDOZA JIMENEZ</div>
-              <div class="cargo">JEFE DE LA OFICINA DE PROMOCIÓN DEPORTIVA</div>
-            </div>
-            <div class="col">
-              <div class="linea"></div>
-              <div class="nombre">OLIMPIA CRUZ REYES</div>
-              <div class="cargo">JEFA DEL DEPTO. DE ACTIVIDADES EXTRAESCOLARES</div>
-            </div>
+            <table class="tabla-pie">
+              <tr>
+                <td class="pie-izq">TecNM-VI-PO-003-05</td>
+                <td class="pie-der">Rev. 0</td>
+              </tr>
+            </table>
           </div>
         </div>
       </div>
 
-      <div class="acciones d-flex align-items-center gap-2 justify-content-center">
-        <label class="me-1">Tipo de club:</label>
-        <select v-model="previewData.tipoActividad" class="form-select form-select-sm" style="width:auto;">
-          <option value="CULTURAL">CULTURAL</option>
-          <option value="DEPORTIVA">DEPORTIVA</option>
-        </select>
-        <button class="btn btn-secondary" @click="previewData = null">Cerrar</button>
-        <button class="btn btn-primary" @click="doPrint()">Imprimir</button>
+      <div class="acciones-preview">
+        <h5 class="mb-3">Editar Constancia</h5>
+        <div class="campos-editar">
+          <div class="campo">
+            <label>Período:</label>
+            <input
+              v-model="previewData.periodo"
+              type="text"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="campo">
+            <label>Desempeño:</label>
+            <select
+              v-model="previewData.desempeno"
+              class="form-select form-select-sm"
+            >
+              <option value="EXCELENTE">EXCELENTE</option>
+              <option value="BUENO">BUENO</option>
+              <option value="REGULAR">REGULAR</option>
+              <option value="INSUFICIENTE">INSUFICIENTE</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Tipo de club:</label>
+            <select
+              v-model="previewData.tipoActividad"
+              class="form-select form-select-sm"
+            >
+              <option value="CULTURAL">CULTURAL</option>
+              <option value="DEPORTIVA">DEPORTIVA</option>
+            </select>
+          </div>
+        </div>
+        <div class="botones-acciones">
+          <button
+            class="btn btn-secondary w-100 mb-2"
+            @click="previewData = null"
+          >
+            Cerrar
+          </button>
+          <button class="btn btn-primary w-100" @click="generarPDF">
+            Descargar PDF
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { getAsistenciasPorClub } from '../services/api';
+import { getAsistenciasPorClub } from "../services/api";
 export default {
-  name: 'Listas',
-  props: ['clubs', 'alumnos', 'fechas'],
+  name: "Listas",
+  props: ["clubs", "alumnos", "fechas"],
   data() {
     return {
-      clubSeleccionado: '',
+      clubSeleccionado: "",
       previewData: null,
       periodoActual: this.getPeriodoActual(),
       alumnosData: [],
@@ -146,135 +345,166 @@ export default {
   },
   computed: {
     fechasCols() {
-      return (this.fechasData && this.fechasData.length) ? this.fechasData : (this.fechas || []);
+      return this.fechasData && this.fechasData.length
+        ? this.fechasData
+        : this.fechas || [];
     },
     alumnosClub() {
       // Preferir alumnos desde backend; si no hay, usar fallback desde props
-      let base = (this.alumnosData && this.alumnosData.length)
-        ? this.alumnosData.slice()
-        : (this.alumnos || []).filter(a => a.club === this.clubSeleccionado).map(a => {
-            const asist = a.asistencias || {};
-            const faltas = Object.values(asist).filter(v => v === false).length;
-            return { ...a, asistencias: asist, faltas };
-          });
-      base.sort((a,b)=> (a.apellidoP||'').localeCompare(b.apellidoP||'') || (a.apellidoM||'').localeCompare(b.apellidoM||'') || (a.nombre||'').localeCompare(b.nombre||''));
+      let base =
+        this.alumnosData && this.alumnosData.length
+          ? this.alumnosData.slice()
+          : (this.alumnos || [])
+              .filter((a) => a.club === this.clubSeleccionado)
+              .map((a) => {
+                const asist = a.asistencias || {};
+                const faltas = Object.values(asist).filter(
+                  (v) => v === false,
+                ).length;
+                return { ...a, asistencias: asist, faltas };
+              });
+      base.sort(
+        (a, b) =>
+          (a.apellidoP || "").localeCompare(b.apellidoP || "") ||
+          (a.apellidoM || "").localeCompare(b.apellidoM || "") ||
+          (a.nombre || "").localeCompare(b.nombre || ""),
+      );
       return base;
     },
     fechaHoy() {
       const ahora = new Date();
-      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-      return { dia: ahora.getDate(), mes: meses[ahora.getMonth()], anio: ahora.getFullYear() };
-    }
+      const meses = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+      ];
+      return {
+        dia: ahora.getDate(),
+        mes: meses[ahora.getMonth()],
+        anio: ahora.getFullYear(),
+      };
+    },
   },
   methods: {
     async loadAsistencias() {
-      const club = (this.clubs || []).find(c => c.nombre === this.clubSeleccionado);
-      if (!club || !club.id) { this.alumnosData = []; this.fechasData = []; return; }
+      const club = (this.clubs || []).find(
+        (c) => c.nombre === this.clubSeleccionado,
+      );
+      if (!club || !club.id) {
+        this.alumnosData = [];
+        this.fechasData = [];
+        return;
+      }
       try {
         const data = await getAsistenciasPorClub(club.id);
         this.fechasData = Array.isArray(data.fechas) ? data.fechas : [];
         const alumnos = Array.isArray(data.alumnos) ? data.alumnos : [];
         const asist = data.asistencias || {};
-        this.alumnosData = alumnos.map(al => {
+        this.alumnosData = alumnos.map((al) => {
           const map = { ...(asist[al.id] || {}) };
-          const faltas = Object.values(map).filter(v => v === false).length;
+          const faltas = Object.values(map).filter((v) => v === false).length;
           return { ...al, asistencias: map, faltas };
         });
       } catch (e) {
-        console.error('Error cargando asistencias:', e);
+        console.error("Error cargando asistencias:", e);
         this.alumnosData = [];
         this.fechasData = [];
       }
     },
     actualizarFaltas(alumno) {
       const asist = alumno.asistencias || {};
-      const totalFaltas = Object.values(asist).filter(v => v === false).length;
-      this.$set ? this.$set(alumno, 'faltas', totalFaltas) : (alumno.faltas = totalFaltas);
+      const totalFaltas = Object.values(asist).filter(
+        (v) => v === false,
+      ).length;
+      this.$set
+        ? this.$set(alumno, "faltas", totalFaltas)
+        : (alumno.faltas = totalFaltas);
     },
     toUpper(v) {
-      return (v == null ? '' : String(v)).toUpperCase();
+      return (v == null ? "" : String(v)).toUpperCase();
     },
     desempenoValor(desempeno) {
-      const mapa = { 'EXCELENTE': 4, 'BUENO': 3, 'REGULAR': 2, 'DEFICIENTE': 1 };
-      return mapa[(desempeno || '').toUpperCase()] || 0;
+      const mapa = { EXCELENTE: 4, BUENO: 3, REGULAR: 2, DEFICIENTE: 1 };
+      return mapa[(desempeno || "").toUpperCase()] || 0;
     },
     getPeriodoActual() {
       const f = new Date();
       const mes = f.getMonth();
       const anio = f.getFullYear();
-      return (mes >= 0 && mes <= 5) ? `Enero-Junio ${anio}` : `Agosto-Diciembre ${anio}`;
+      return mes >= 0 && mes <= 5
+        ? `Enero-Junio ${anio}`
+        : `Agosto-Diciembre ${anio}`;
     },
     isCulturalName(nombre) {
-      const n = (nombre || '').toString().trim().toLowerCase();
-      const culturales = ['danza', 'rondalla', 'banda de musica', 'banda de música'];
+      const n = (nombre || "").toString().trim().toLowerCase();
+      const culturales = [
+        "danza",
+        "rondalla",
+        "banda de musica",
+        "banda de música",
+      ];
       return culturales.includes(n);
     },
     tipoActividad(nombreClub) {
-      return this.isCulturalName(nombreClub) ? 'CULTURAL' : 'DEPORTIVA';
+      return this.isCulturalName(nombreClub) ? "CULTURAL" : "DEPORTIVA";
     },
     imprimirConstancia(alumno) {
-      const club = alumno.club || this.clubSeleccionado || '';
+      const club = alumno.club || this.clubSeleccionado || "";
       const data = {
-        estudianteNombre: `${alumno.nombre || ''} ${alumno.apellidoP || ''} ${alumno.apellidoM || ''}`.trim(),
-        numeroControl: alumno.control || '',
-        carrera: alumno.carrera || 'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
+        estudianteNombre:
+          `${alumno.nombre || ""} ${alumno.apellidoP || ""} ${alumno.apellidoM || ""}`.trim(),
+        numeroControl: alumno.control || "",
+        carrera: alumno.carrera || "INGENIERÍA EN SISTEMAS COMPUTACIONALES",
         club: club.toLowerCase(),
-        desempeno: (alumno.desempeno || (alumno.faltas <= 1 ? 'EXCELENTE' : alumno.faltas === 2 ? 'BUENO' : 'REGULAR')).toString(),
+        desempeno: (
+          alumno.desempeno ||
+          (alumno.faltas <= 1
+            ? "EXCELENTE"
+            : alumno.faltas === 2
+              ? "BUENO"
+              : "REGULAR")
+        ).toString(),
         periodo: alumno.periodo || this.periodoActual,
-        tipoActividad: this.tipoActividad(club)
+        tipoActividad: this.tipoActividad(club),
       };
       this.previewData = { ...data };
-      this.$nextTick(() => this.doPrint());
     },
-    imprimirTodas() {
-      const lista = this.alumnosClub.filter(a => (a.faltas || 0) < 3);
-      if (!lista.length) { alert('No hay alumnos acreditados para imprimir constancias.'); return; }
-      // Secuencia simple: imprime una por una con pequeños retrasos
-      let i = 0;
-      const next = () => {
-        if (i >= lista.length) { this.previewData = null; return; }
-        this.imprimirConstancia(lista[i]);
-        i += 1;
-        setTimeout(next, 1200);
-      };
-      next();
+    descargarConstancia(alumno) {
+      this.imprimirConstancia(alumno);
     },
-    doPrint() {
-      const nodo = document.getElementById('constancia');
-      if (!nodo) return;
-      const frame = document.createElement('iframe');
-      frame.style.position = 'fixed';
-      frame.style.right = '0';
-      frame.style.bottom = '0';
-      frame.style.width = '0';
-      frame.style.height = '0';
-      frame.style.border = '0';
-      document.body.appendChild(frame);
-      const win = frame.contentWindow;
-      const doc = win.document;
-      const html = `<!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Constancia</title>
-          <style>${this.printStyles()}</style>
-        </head>
-        <body>${nodo.outerHTML}</body>
-      </html>`;
-      doc.open();
-      doc.write(html);
-      doc.close();
-      const tryPrint = () => {
-        try { win.focus(); win.print(); } finally {
-          setTimeout(() => document.body.removeChild(frame), 600);
-        }
+    generarPDF() {
+      const nodo = document.getElementById("constancia");
+      if (!nodo || !this.previewData) return;
+
+      const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
+      const opt = {
+        margin: [15, 15, 15, 15],
+        filename: `Constancia_${nombre}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
       };
-      if (doc.readyState === 'complete') {
-        tryPrint();
+
+      // Cargar html2pdf desde CDN
+      if (typeof html2pdf === "undefined") {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+        document.head.appendChild(script);
+        script.onload = () => {
+          html2pdf().set(opt).from(nodo).save();
+        };
       } else {
-        doc.addEventListener('readystatechange', () => {
-          if (doc.readyState === 'complete') tryPrint();
-        });
+        html2pdf().set(opt).from(nodo).save();
       }
     },
     printStyles() {
@@ -298,24 +528,324 @@ export default {
         .firmas .nombre { font-weight: bold; }
         .firmas .cargo { font-size: 11px; }
       `;
-    }
+    },
   },
   watch: {
     clubSeleccionado() {
       this.loadAsistencias();
-    }
+    },
   },
   mounted() {
     // si ya hay un club seleccionado inicial, cargar
     if (this.clubSeleccionado) this.loadAsistencias();
-  }
+  },
 };
 </script>
 
 <style scoped>
-.table { font-size: 0.95rem; }
+.table {
+  font-size: 0.95rem;
+}
 
-.print-preview { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-.print-preview .A4 { background: #fff; max-width: 210mm; padding: 20mm; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
-.print-preview .acciones { text-align: center; margin-top: 12px; }
+.print-preview {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  z-index: 2000;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.preview-documento {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.print-preview .A4 {
+  background: #fff;
+  max-width: 215.9mm;
+  padding: 15mm;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  font-family: Arial, sans-serif;
+  color: #000;
+  font-size: 11pt;
+  line-height: 1.2;
+}
+
+/* Tablas */
+.tabla-encabezado {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000;
+  margin-bottom: 30px;
+  background: #fff;
+}
+
+.tabla-encabezado tr {
+  border: 1px solid #000;
+}
+
+.tabla-encabezado td {
+  border: 1px solid #000;
+  padding: 8px;
+}
+
+.celda-logo {
+  width: 80px;
+  text-align: center;
+  vertical-align: middle;
+  background: #fff;
+}
+
+.logo-img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}
+
+.celda-titulo-principal {
+  text-align: left;
+  vertical-align: middle;
+  font-size: 9pt;
+  background: #fff;
+  padding: 8px;
+  padding-left: 10px;
+}
+
+.celda-codigo {
+  width: 120px;
+  text-align: left;
+  vertical-align: top;
+  background: #fff;
+  padding: 8px;
+  border-left: 1px solid #000;
+  padding-left: 10px;
+}
+
+.celda-norma {
+  text-align: left;
+  font-size: 8pt;
+  background: #fff;
+  vertical-align: middle;
+  padding-left: 10px;
+}
+
+.codigo-box {
+  font-weight: bold;
+  font-size: 9pt;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #000;
+}
+
+.revision-box {
+  font-size: 9pt;
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #000;
+}
+
+.pagina-box {
+  font-size: 9pt;
+  padding-top: 8px;
+}
+
+.separador-grande {
+  height: 2px;
+  background: #000;
+  margin: 15px 0;
+}
+
+.titulo-constancia {
+  text-align: center;
+  font-size: 12pt;
+  font-weight: bold;
+  margin: 50px 0 20px 0;
+}
+
+.espacios {
+  height: 20px;
+}
+
+.espacios-mediano {
+  height: 30px;
+}
+
+.espacios-firma {
+  height: 30px;
+}
+
+.espacios-firma-grandes {
+  height: 80px;
+}
+
+.cuerpo {
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+.destinatario {
+  font-weight: bold;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.texto {
+  text-align: justify;
+  margin-bottom: 15px;
+}
+
+.texto.justificado {
+  text-align: justify;
+}
+
+.lugar-fecha {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.tabla-firmas {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 30px;
+}
+
+.celda-firma-iz,
+.celda-firma-der {
+  width: 50%;
+  text-align: center;
+  font-weight: bold;
+  padding: 5px;
+}
+
+.celda-firma-nombre {
+  width: 50%;
+  text-align: center;
+  padding: 5px;
+}
+
+.linea-firma {
+  border-top: 1px solid #000;
+  margin: 50px 20px 5px;
+}
+
+.nombre-firma {
+  font-weight: bold;
+  margin-top: 5px;
+  font-size: 10pt;
+}
+
+.cargo-firma {
+  font-size: 9pt;
+  margin-top: 2px;
+}
+
+.pie-pagina {
+  text-align: left;
+  font-size: 10pt;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.tabla-pie {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  border-top: 1px solid #000;
+  padding-top: 5px;
+}
+
+.pie-izq {
+  text-align: left;
+  font-size: 9pt;
+  padding-top: 5px;
+}
+
+.pie-der {
+  text-align: right;
+  font-size: 9pt;
+  padding-top: 5px;
+}
+
+.acciones-preview {
+  width: 350px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.acciones-preview h5 {
+  border-bottom: 2px solid #0d6efd;
+  padding-bottom: 10px;
+  color: #0d6efd;
+}
+
+.campos-editar {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.campo label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.campo input,
+.campo select {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  outline: none;
+}
+
+.botones-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.botones-acciones button {
+  padding: 10px 20px;
+  font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .print-preview {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .acciones-preview {
+    width: 100%;
+    position: static;
+  }
+}
 </style>
