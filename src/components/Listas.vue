@@ -29,8 +29,21 @@
               {{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}
             </td>
             <td v-for="fecha in fechasCols" :key="fecha" class="text-center">
-              <span v-if="alumno.asistencias && alumno.asistencias[fecha]" class="text-success fw-bold" style="font-size: 1.5rem;">✔</span>
-              <span v-else class="text-danger fw-bold" style="font-size: 1.5rem;">✖</span>
+              <span
+                v-if="alumno.asistencias && alumno.asistencias[fecha]"
+                class="text-success fw-bold"
+                style="font-size: 1.5rem"
+                >✔</span
+              >
+              <span v-else class="text-danger fw-bold" style="font-size: 1.5rem"
+                >✖</span
+              >
+              <span
+                v-if="alumno.asistencias && alumno.asistencias[fecha]"
+                class="text-success fw-bold"
+                >✔</span
+              >
+              <span v-else class="text-danger fw-bold">✖</span>
             </td>
             <td>
               <span
@@ -99,15 +112,15 @@
               </td>
 
               <!-- Título -->
-              <td style="border: 1px solid; vertical-align: middle">
+              <td style="border: 1px solid #000; vertical-align: middle">
                 Constancia de cumplimiento de actividad Cultural y/o Deportiva
               </td>
 
-              <!-- Código / Revisión / Página -->
+              <!-- Codigo / Revision / Pagina -->
               <td
                 rowspan="2"
                 style="
-                  border: 1px solid;
+                  border: 1px solid #000;
                   width: 32%;
                   vertical-align: top;
                   padding: 0;
@@ -119,21 +132,21 @@
                   <tr>
                     <td
                       style="
-                        border-bottom: 1px solid;
+                        border-bottom: 1px solid black;
                         padding: 6px;
                         white-space: nowrap;
                       "
                     >
-                      <strong>Código:TecNM-VI-PO-003-05</strong>
+                      <strong>Codigo:TecNM-VI-PO-003-05</strong>
                     </td>
                   </tr>
                   <tr>
-                    <td style="border-bottom: 1px solid; padding: 6px">
-                      Revisión: 0
+                    <td style="border-bottom: 1px solid black; padding: 6px">
+                      Revision: 0
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding: 6px">Página 1 de 1</td>
+                    <td style="padding: 6px">Pagina 1 de 1</td>
                   </tr>
                 </table>
               </td>
@@ -393,10 +406,9 @@ export default {
   methods: {
     async loadAsistencias() {
       const club = (this.clubs || []).find(c => c.nombre === this.clubSeleccionado);
-
-      // Si no hay club o ID, usar los datos de props como respaldo
       if (!club || !club.id) {
-        this.fechasData = [];
+        this.alumnosData = [];
+        // Si no hay club, cargar desde props
         if (this.alumnos && this.alumnos.length) {
           const alumnosDelClub = this.alumnos.filter(a => a.club === this.clubSeleccionado);
           this.alumnosData = alumnosDelClub.map(a => ({
@@ -407,6 +419,13 @@ export default {
         } else {
           this.alumnosData = [];
         }
+        return;
+      const club = (this.clubs || []).find(
+        (c) => c.nombre === this.clubSeleccionado,
+      );
+      if (!club || !club.id) {
+        this.alumnosData = [];
+        this.fechasData = [];
         return;
       }
 
