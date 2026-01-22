@@ -36,17 +36,17 @@
           <thead class="table-secondary">
             <tr>
               <th>Alumno</th>
-              <th v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha">{{ fecha }}</th>
+              <th
+                v-for="fecha in fechasData.length ? fechasData : fechas"
+                :key="fecha"
+              >
+                {{ fecha }}
+              </th>
               <th>Constancia</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(alumno, i) in filteredAlumnos(club.nombre)" :key="'c-'+i">
-              <td>{{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}</td>
-              <td v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" class="text-center">
-                <span v-if="alumno.asistencias?.[fecha]" class="text-success fw-bold" style="font-size: 1.5rem;">✔</span>
-                <span v-else class="text-danger fw-bold" style="font-size: 1.5rem;">✖</span>
             <tr
               v-for="(alumno, i) in filteredAlumnos(club.nombre)"
               :key="'c-' + i"
@@ -55,47 +55,80 @@
                 {{ alumno.nombre }} {{ alumno.apellidoP }}
                 {{ alumno.apellidoM }}
               </td>
-              <td v-for="fecha in fechas" :key="fecha">
+              <td
+                v-for="fecha in fechasData.length ? fechasData : fechas"
+                :key="fecha"
+                class="text-center"
+              >
                 <span
                   v-if="alumno.asistencias?.[fecha]"
                   class="text-success fw-bold"
+                  style="font-size: 1.5rem"
                   >✔</span
                 >
-                <span v-else class="text-danger fw-bold">✖</span>
-              </td>
-              <td>
                 <span
-                  :class="alumno.faltas <= 2 ? 'text-success' : 'text-danger'"
+                  v-else
+                  class="text-danger fw-bold"
+                  style="font-size: 1.5rem"
+                  >✖</span
                 >
-                  {{ alumno.faltas <= 2 ? "Sí" : "No" }}
-                </span>
-              </td>
-              <td>
-                <button
-                  class="btn btn-sm btn-outline-info"
-                  @click="
-                    descargarConstancia({
-                      estudianteNombre:
-                        `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
-                      numeroControl: alumno.control,
-                      carrera:
-                        alumno.carrera ||
-                        'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
-                      club: (alumno.club || club.nombre || '').toLowerCase(),
-                      desempeno: (
-                        alumno.desempeno ||
-                        (alumno.faltas <= 1
-                          ? 'EXCELENTE'
-                          : alumno.faltas === 2
-                            ? 'BUENO'
-                            : 'REGULAR')
-                      ).toString(),
-                      periodo: alumno.periodo || periodoActual,
-                    })
-                  "
+                <tr
+                  v-for="(alumno, i) in filteredAlumnos(club.nombre)"
+                  :key="'c-' + i"
                 >
-                  Descargar
-                </button>
+                  <td>
+                    {{ alumno.nombre }} {{ alumno.apellidoP }}
+                    {{ alumno.apellidoM }}
+                  </td>
+                  <td v-for="fecha in fechas" :key="fecha">
+                    <span
+                      v-if="alumno.asistencias?.[fecha]"
+                      class="text-success fw-bold"
+                      >✔</span
+                    >
+                    <span v-else class="text-danger fw-bold">✖</span>
+                  </td>
+                  <td>
+                    <span
+                      :class="
+                        alumno.faltas <= 2 ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ alumno.faltas <= 2 ? "Sí" : "No" }}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      class="btn btn-sm btn-outline-info"
+                      @click="
+                        descargarConstancia({
+                          estudianteNombre:
+                            `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+                          numeroControl: alumno.control,
+                          carrera:
+                            alumno.carrera ||
+                            'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
+                          club: (
+                            alumno.club ||
+                            club.nombre ||
+                            ''
+                          ).toLowerCase(),
+                          desempeno: (
+                            alumno.desempeno ||
+                            (alumno.faltas <= 1
+                              ? 'EXCELENTE'
+                              : alumno.faltas === 2
+                                ? 'BUENO'
+                                : 'REGULAR')
+                          ).toString(),
+                          periodo: alumno.periodo || periodoActual,
+                        })
+                      "
+                    >
+                      Descargar
+                    </button>
+                  </td>
+                </tr>
               </td>
             </tr>
           </tbody>
@@ -142,15 +175,15 @@
               </td>
 
               <!-- Título -->
-              <td style="border: 1px solid; vertical-align: middle">
+              <td style="border: 1px solid #000; vertical-align: middle">
                 Constancia de cumplimiento de actividad Cultural y/o Deportiva
               </td>
 
-              <!-- Código / Revisión / Página -->
+              <!-- Codigo / Revision / Pagina -->
               <td
                 rowspan="2"
                 style="
-                  border: 1px solid;
+                  border: 1px solid #000;
                   width: 32%;
                   vertical-align: top;
                   padding: 0;
@@ -162,21 +195,21 @@
                   <tr>
                     <td
                       style="
-                        border-bottom: 1px solid;
+                        border-bottom: 1px solid black;
                         padding: 6px;
                         white-space: nowrap;
                       "
                     >
-                      <strong>Código:TecNM-VI-PO-003-05</strong>
+                      <strong>Codigo:TecNM-VI-PO-003-05</strong>
                     </td>
                   </tr>
                   <tr>
-                    <td style="border-bottom: 1px solid; padding: 6px">
-                      Revisión: 0
+                    <td style="border-bottom: 1px solid black; padding: 6px">
+                      Revision: 0
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding: 6px">Página 1 de 1</td>
+                    <td style="padding: 6px">Pagina 1 de 1</td>
                   </tr>
                 </table>
               </td>
@@ -415,12 +448,12 @@ export default {
             try {
               const data = await getAsistenciasPorClub(club.id);
               this.alumnosPorClub[club.id] = Array.isArray(data.alumnos) ? data.alumnos : [];
-              
+
               // Agregar fechas únicas
               if (Array.isArray(data.fechas)) {
                 this.fechasData = [...new Set([...this.fechasData, ...data.fechas])].sort();
               }
-              
+
               // Mapear asistencias
               const asist = data.asistencias || {};
               this.alumnosPorClub[club.id] = (this.alumnosPorClub[club.id] || []).map(al => {
@@ -441,12 +474,12 @@ export default {
     filteredAlumnos(clubName) {
       // Buscar el club por nombre
       const club = (this.clubs || []).find(c => c.nombre === clubName);
-      
+
       // Si tenemos datos de BD para este club, usarlos
       if (club && club.id && this.alumnosPorClub[club.id]) {
         return this.alumnosPorClub[club.id];
       }
-      
+
       // Fallback a props
       return (this.alumnos || []).filter(a => a.club === clubName);
       return (this.alumnos || []).filter((a) => a.club === clubName);
