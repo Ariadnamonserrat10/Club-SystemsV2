@@ -36,12 +36,17 @@
           <thead class="table-secondary">
             <tr>
               <th>Alumno</th>
-              <th v-for="fecha in fechas" :key="fecha">{{ fecha }}</th>
+              <th v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha">{{ fecha }}</th>
               <th>Constancia</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
+            <tr v-for="(alumno, i) in filteredAlumnos(club.nombre)" :key="'c-'+i">
+              <td>{{ alumno.nombre }} {{ alumno.apellidoP }} {{ alumno.apellidoM }}</td>
+              <td v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" class="text-center">
+                <span v-if="alumno.asistencias?.[fecha]" class="text-success fw-bold" style="font-size: 1.5rem;">✔</span>
+                <span v-else class="text-danger fw-bold" style="font-size: 1.5rem;">✖</span>
             <tr
               v-for="(alumno, i) in filteredAlumnos(club.nombre)"
               :key="'c-' + i"
@@ -364,6 +369,8 @@
 </template>
 
 <script>
+import { getAsistenciasPorClub } from '../services/api';
+
 export default {
   name: "Constancias",
   props: ["clubs", "alumnos", "fechas"],
@@ -371,6 +378,8 @@ export default {
     return {
       previewData: null,
       periodoActual: this.getPeriodoActual(),
+      alumnosPorClub: {}, // Objeto que almacena alumnos por club_id
+      fechasData: [] // Fechas desde BD
     };
   },
   computed: {
@@ -398,7 +407,48 @@ export default {
     },
   },
   methods: {
+    async loadAsistenciasPorClubs() {
+      try {
+        // Cargar asistencias para cada club
+        for (const club of (this.clubs || [])) {
+          if (club.id) {
+            try {
+              const data = await getAsistenciasPorClub(club.id);
+              this.alumnosPorClub[club.id] = Array.isArray(data.alumnos) ? data.alumnos : [];
+              
+              // Agregar fechas únicas
+              if (Array.isArray(data.fechas)) {
+                this.fechasData = [...new Set([...this.fechasData, ...data.fechas])].sort();
+              }
+              
+              // Mapear asistencias
+              const asist = data.asistencias || {};
+              this.alumnosPorClub[club.id] = (this.alumnosPorClub[club.id] || []).map(al => {
+                const map = { ...(asist[al.id] || {}) };
+                const faltas = Object.values(map).filter(v => v === false).length;
+                return { ...al, asistencias: map, faltas };
+              });
+            } catch (e) {
+              console.error(`Error cargando asistencias para club ${club.id}:`, e);
+              this.alumnosPorClub[club.id] = [];
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error cargando asistencias por clubs:', e);
+      }
+    },
     filteredAlumnos(clubName) {
+      // Buscar el club por nombre
+      const club = (this.clubs || []).find(c => c.nombre === clubName);
+      
+      // Si tenemos datos de BD para este club, usarlos
+      if (club && club.id && this.alumnosPorClub[club.id]) {
+        return this.alumnosPorClub[club.id];
+      }
+      
+      // Fallback a props
+      return (this.alumnos || []).filter(a => a.club === clubName);
       return (this.alumnos || []).filter((a) => a.club === clubName);
     },
     downloadAll() {
@@ -532,6 +582,19 @@ export default {
         .firmas .nombre { font-weight: bold; }
         .firmas .cargo { font-size: 11px; }
       `;
+    }
+  },
+  watch: {
+    clubs: {
+      handler() {
+        this.loadAsistenciasPorClubs();
+      },
+      deep: true
+    }
+  },
+  mounted() {
+    this.loadAsistenciasPorClubs();
+  }
     },
   },
 };

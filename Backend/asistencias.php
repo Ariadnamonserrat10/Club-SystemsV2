@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+header('Content-Type: application/json; charset=utf-8');
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
@@ -27,27 +30,18 @@ if (!isset($conexion) || !($conexion instanceof mysqli)) {
 function ensureTables(mysqli $db) {
   $sql1 = "CREATE TABLE IF NOT EXISTS asistencias (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    alumno_id INT NOT NULL,
+    id_alumno INT NOT NULL,
     fecha DATE NOT NULL,
     presente TINYINT(1) NOT NULL DEFAULT 0,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_alumno_fecha (alumno_id, fecha),
+    UNIQUE KEY uniq_alumno_fecha (id_alumno, fecha),
     INDEX idx_fecha (fecha),
-    INDEX idx_alumno (alumno_id),
-    CONSTRAINT fk_asist_alumno FOREIGN KEY (alumno_id) REFERENCES alumnos(id) ON DELETE CASCADE
+    INDEX idx_alumno (id_alumno),
+    CONSTRAINT fk_asist_alumno FOREIGN KEY (id_alumno) REFERENCES alumnos(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-  @$db->query($sql1);
-
-  $sql2 = "CREATE TABLE IF NOT EXISTS fechas_club (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    club_id INT NOT NULL,
-    fecha DATE NOT NULL,
-    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_club_fecha (club_id, fecha),
-    INDEX idx_fc_club (club_id),
-    INDEX idx_fc_fecha (fecha)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-  @$db->query($sql2);
+  if (!$db->query($sql1)) {
+    error_log('Error creando tabla asistencias: ' . $db->error);
+  }
 }
 
 ensureTables($conexion);
@@ -73,30 +67,38 @@ try {
     $alumnoIds = [];
     while ($row = $resA->fetch_assoc()) { $alumnos[] = $row; $alumnoIds[] = (int)$row['id']; }
 
-    // Si no hay alumnos, devolver fechas desde fechas_club y asistencias vacías
+    // Si no hay alumnos, devolver sin fechas
     if (empty($alumnoIds)) {
-      $stmtF = $conexion->prepare('SELECT fecha FROM fechas_club WHERE club_id = ? ORDER BY fecha ASC');
-      $stmtF->bind_param('i', $clubId);
-      $stmtF->execute();
-      $resF = $stmtF->get_result();
-      $fechas = [];
-      while ($r = $resF->fetch_assoc()) { $fechas[] = $r['fecha']; }
-      echo json_encode(['status' => 'success', 'data' => ['fechas' => $fechas, 'asistencias' => [], 'alumnos' => $alumnos]]);
+      echo json_encode(['status' => 'success', 'data' => ['fechas' => [], 'asistencias' => [], 'alumnos' => $alumnos]]);
       exit;
     }
 
     // Obtener asistencias para esos alumnos
     $placeholders = implode(',', array_fill(0, count($alumnoIds), '?'));
     $types = str_repeat('i', count($alumnoIds));
-    $stmt = $conexion->prepare("SELECT alumno_id, fecha, presente FROM asistencias WHERE alumno_id IN ($placeholders) ORDER BY fecha ASC");
-    $stmt->bind_param($types, ...$alumnoIds);
-    $stmt->execute();
+    $stmt = $conexion->prepare("SELECT id_alumno, fecha, presente FROM asistencias WHERE id_alumno IN ($placeholders) ORDER BY fecha ASC");
+    
+    if (!$stmt) {
+      error_log("Error preparando SELECT asistencias: " . $conexion->error);
+      echo json_encode(['status' => 'success', 'data' => ['fechas' => [], 'asistencias' => [], 'alumnos' => $alumnos]]);
+      exit;
+    }
+    
+    // Usar call_user_func_array para evitar problemas con spread operator
+    call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $alumnoIds));
+    
+    if (!$stmt->execute()) {
+      error_log("Error ejecutando SELECT asistencias: " . $stmt->error);
+      echo json_encode(['status' => 'success', 'data' => ['fechas' => [], 'asistencias' => [], 'alumnos' => $alumnos]]);
+      exit;
+    }
+    
     $res = $stmt->get_result();
 
     $fechasSet = [];
-    $asistencias = []; // { alumno_id: { 'YYYY-MM-DD': bool } }
+    $asistencias = []; // { id_alumno: { 'YYYY-MM-DD': bool } }
     while ($row = $res->fetch_assoc()) {
-      $aid = (int)$row['alumno_id'];
+      $aid = (int)$row['id_alumno'];
       $fecha = $row['fecha']; // YYYY-MM-DD
       $pres = (int)$row['presente'] === 1;
       $fechasSet[$fecha] = true;
@@ -104,15 +106,12 @@ try {
       $asistencias[$aid][$fecha] = $pres;
     }
 
-    // Unir fechas registradas por club aunque no existan asistencias
-    $stmtF = $conexion->prepare('SELECT fecha FROM fechas_club WHERE club_id = ? ORDER BY fecha ASC');
-    $stmtF->bind_param('i', $clubId);
-    $stmtF->execute();
-    $resF = $stmtF->get_result();
-    while ($r = $resF->fetch_assoc()) { $fechasSet[$r['fecha']] = true; }
-
+    // Las fechas ya están en $fechasSet desde la consulta de asistencias
     $fechas = array_keys($fechasSet);
     sort($fechas);
+    
+    error_log("Total de fechas encontradas: " . count($fechas));
+    error_log("Fechas: " . json_encode($fechas));
 
     echo json_encode(['status' => 'success', 'data' => [
       'fechas' => $fechas,
@@ -141,21 +140,24 @@ try {
       exit;
     }
 
-    // Registrar fecha para el club (aunque no haya alumnos)
-    $stmtFC = $conexion->prepare('INSERT IGNORE INTO fechas_club (club_id, fecha) VALUES (?, ?)');
-    $stmtFC->bind_param('is', $clubId, $fecha);
-    @$stmtFC->execute();
-
     // Validar que los alumno_id pertenezcan al club
     $ids = array_map(fn($r) => (int)($r['alumno_id'] ?? 0), $registros);
     $ids = array_values(array_filter(array_unique($ids), fn($v) => $v > 0));
 
     if (!empty($ids)) {
       $place = implode(',', array_fill(0, count($ids), '?'));
-      $types = str_repeat('i', count($ids));
+      $types = str_repeat('i', count($ids)) . 'i';
       $stmtV = $conexion->prepare("SELECT id FROM alumnos WHERE id IN ($place) AND id_club = ?");
-      $types2 = $types . 'i';
-      $stmtV->bind_param($types2, ...$ids, $clubId);
+      
+      // Preparar los parámetros para bind_param
+      $params = array_merge($ids, [$clubId]);
+      
+      // Usar call_user_func_array para evitar el error de spread operator
+      call_user_func_array(
+        [$stmtV, 'bind_param'],
+        array_merge([$types], $params)
+      );
+      
       $stmtV->execute();
       $resV = $stmtV->get_result();
       $validIds = [];
@@ -166,7 +168,7 @@ try {
     }
 
     // Insertar o actualizar registros de asistencia para esa fecha
-    $stmtIns = $conexion->prepare('INSERT INTO asistencias (alumno_id, fecha, presente) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE presente = VALUES(presente)');
+    $stmtIns = $conexion->prepare('INSERT INTO asistencias (id_alumno, fecha, presente) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE presente = VALUES(presente)');
 
     $count = 0;
     foreach ($registros as $r) {
@@ -175,13 +177,16 @@ try {
       if (!isset($validMap[$aid])) continue; // ignorar alumnos fuera del club
       $pres = !empty($r['presente']) ? 1 : 0;
       $stmtIns->bind_param('isi', $aid, $fecha, $pres);
-      $ok = $stmtIns->execute();
-      if ($ok) $count++;
+      if ($stmtIns->execute()) {
+        $count++;
+        error_log("Asistencia guardada: id_alumno=$aid, fecha=$fecha, presente=$pres");
+      } else {
+        error_log("Error guardando asistencia: " . $stmtIns->error);
+      }
     }
 
     echo json_encode(['status' => 'success', 'message' => "Registros guardados: $count"]);
-    exit;
-  }
+    exit;}
 
   if ($method === 'PUT') {
     // PUT /asistencias.php  body: { alumno_id, fecha: 'YYYY-MM-DD', presente: bool }
@@ -198,7 +203,7 @@ try {
       exit;
     }
 
-    $stmt = $conexion->prepare('INSERT INTO asistencias (alumno_id, fecha, presente) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE presente = VALUES(presente)');
+    $stmt = $conexion->prepare('INSERT INTO asistencias (id_alumno, fecha, presente) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE presente = VALUES(presente)');
     $stmt->bind_param('isi', $alumnoId, $fecha, $presente);
     if (!$stmt->execute()) {
       http_response_code(500);
