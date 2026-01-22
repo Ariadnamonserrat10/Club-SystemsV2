@@ -11,7 +11,16 @@
         class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
       >
         <div>
-          {{ club.nombre }} — Monitor: {{ club.monitor || "Sin asignar" }}
+          {{ club.nombre }} — Monitores: 
+          <span v-if="club.monitores && club.monitores.length">
+            {{ club.monitores.map(m => formatMonitorNombre(m)).join(', ') }}
+          </span>
+          <span v-else-if="club.monitor">
+            {{ formatMonitorNombre(club.monitor) }}
+          </span>
+          <span v-else>
+            Sin asignar
+          </span>
         </div>
         <div class="d-flex gap-2">
           <button
@@ -49,7 +58,7 @@
           <tbody>
             <tr
               v-for="(alumno, i) in filteredAlumnos(club.nombre)"
-              :key="'c-' + i"
+              :key="alumno.id || alumno.control || ('c-' + i)"
             >
               <td>
                 {{ alumno.nombre }} {{ alumno.apellidoP }}
@@ -72,63 +81,46 @@
                   style="font-size: 1.5rem"
                   >✖</span
                 >
-                <tr
-                  v-for="(alumno, i) in filteredAlumnos(club.nombre)"
-                  :key="'c-' + i"
+              </td>
+              <td>
+                <span
+                  :class="
+                    alumno.faltas <= 2 ? 'text-success' : 'text-danger'
+                  "
                 >
-                  <td>
-                    {{ alumno.nombre }} {{ alumno.apellidoP }}
-                    {{ alumno.apellidoM }}
-                  </td>
-                  <td v-for="fecha in fechas" :key="fecha">
-                    <span
-                      v-if="alumno.asistencias?.[fecha]"
-                      class="text-success fw-bold"
-                      >✔</span
-                    >
-                    <span v-else class="text-danger fw-bold">✖</span>
-                  </td>
-                  <td>
-                    <span
-                      :class="
-                        alumno.faltas <= 2 ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ alumno.faltas <= 2 ? "Sí" : "No" }}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      class="btn btn-sm btn-outline-info"
-                      @click="
-                        descargarConstancia({
-                          estudianteNombre:
-                            `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
-                          numeroControl: alumno.control,
-                          carrera:
-                            alumno.carrera ||
-                            'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
-                          club: (
-                            alumno.club ||
-                            club.nombre ||
-                            ''
-                          ).toLowerCase(),
-                          desempeno: (
-                            alumno.desempeno ||
-                            (alumno.faltas <= 1
-                              ? 'EXCELENTE'
-                              : alumno.faltas === 2
-                                ? 'BUENO'
-                                : 'REGULAR')
-                          ).toString(),
-                          periodo: alumno.periodo || periodoActual,
-                        })
-                      "
-                    >
-                      Descargar
-                    </button>
-                  </td>
-                </tr>
+                  {{ alumno.faltas <= 2 ? "Sí" : "No" }}
+                </span>
+              </td>
+              <td>
+                <button
+                  class="btn btn-sm btn-outline-info"
+                  @click="
+                    descargarConstancia({
+                      estudianteNombre:
+                        `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+                      numeroControl: alumno.control,
+                      carrera:
+                        alumno.carrera ||
+                        'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
+                      club: (
+                        alumno.club ||
+                        club.nombre ||
+                        ''
+                      ).toLowerCase(),
+                      desempeno: (
+                        alumno.desempeno ||
+                        (alumno.faltas <= 1
+                          ? 'EXCELENTE'
+                          : alumno.faltas === 2
+                            ? 'BUENO'
+                            : 'REGULAR')
+                      ).toString(),
+                      periodo: alumno.periodo || periodoActual,
+                    })
+                  "
+                >
+                  Descargar
+                </button>
               </td>
             </tr>
           </tbody>
@@ -440,6 +432,14 @@ export default {
     },
   },
   methods: {
+    formatMonitorNombre(monitor) {
+      // monitor puede ser objeto o string. Si es objeto, se espera { nombre, apellidoP, apellidoM }
+      if (!monitor) return '';
+      if (typeof monitor === 'string') return monitor;
+      const nombre = (monitor.nombre || '').trim().split(/\s+/)[0] || '';
+      const apellidoP = (monitor.apellidoP || monitor.apellido || '').trim().split(/\s+/)[0] || '';
+      return [nombre, apellidoP].filter(Boolean).join(' ');
+    },
     async loadAsistenciasPorClubs() {
       try {
         // Cargar asistencias para cada club
