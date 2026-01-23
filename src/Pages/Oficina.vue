@@ -144,7 +144,7 @@ import AlumnosR from "../components/AlumnosR.vue";
 import Constancias from "../components/Constancias.vue";
 import Auditoria from "../components/Auditoria.vue";
 import Listas from "../components/Listas.vue";
-import { getClubs, getAlumnos, createClub, updateClub, deleteClub } from "../services/api";
+import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs } from "../services/api";
 import axios from "axios";
 
 export default {
@@ -267,6 +267,11 @@ export default {
     async loadClubs() {
       try {
         const rows = await getClubs();
+        // Obtener todos los monitores
+        const todosLosMonitores = await getAllMonitoresWithClubs();
+        
+        console.log('Todos los monitores:', todosLosMonitores);
+        
         // Mapear a estructura de UI
         this.clubs = rows.map((r) => ({
           id: Number(r.id),
@@ -276,7 +281,24 @@ export default {
           ocupados: 0,
           id_responsable: r.id_responsable,
           creado_en: r.creado_en,
+          monitores: [] // inicializar array vacío para monitores
         }));
+        
+        // Asignar monitores a sus clubs
+        for (const monitor of todosLosMonitores) {
+          const club = this.clubs.find(c => c.id === Number(monitor.club_asignado));
+          if (club) {
+            club.monitores.push({
+              id: monitor.id,
+              nombre: monitor.nombre,
+              apellidoP: monitor.apellidoP,
+              apellidoM: monitor.apellidoM,
+              usuario: monitor.usuario
+            });
+          }
+        }
+        
+        console.log('Clubs cargados con monitores:', this.clubs);
       } catch (e) {
         this.showError(e.message || "No se pudo cargar clubs");
       }

@@ -128,6 +128,46 @@ export async function uploadFoto(file) {
   return data; // { status, file, filename }
 }
 
+// Monitores por Club
+export async function getMonitoresPorClub(clubId) {
+  const url = `/api/getMonitores.php?club_id=${encodeURIComponent(clubId)}`;
+  const res = await fetch(url, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) {
+    console.error('Error fetching monitores:', res.status, data);
+    return { club_id: clubId, monitores: [] };
+  }
+  return data.data || { club_id: clubId, monitores: [] };
+}
+
+// Obtener todos los monitores con sus clubs asignados
+export async function getAllMonitoresWithClubs() {
+  const res = await fetch(`/api/Usuarios.php`, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) {
+    console.error('Error fetching all usuarios:', res.status, data);
+    return [];
+  }
+  // Filtrar solo monitores que tengan club asignado
+  return (data.data || []).filter(u => u.tipo === 'MONITOR' && u.club_asignado);
+}
+
+// Asignar monitor a un club
+export async function asignarMonitorAClub(monitorId, clubId) {
+  const url = `/api/asignarMonitor.php`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ monitor_id: monitorId, club_id: clubId })
+  });
+  const data = await toJson(res);
+  if (!res.ok) {
+    console.error('Error asigning monitor:', res.status, data);
+    throw new Error(data?.message || 'Error al asignar monitor');
+  }
+  return data.data;
+}
+
 // Alumnos
 export async function getAlumnos() {
   const res = await fetch(ALUMNOS_BASE, { method: 'GET' });
