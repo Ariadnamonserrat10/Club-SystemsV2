@@ -64,9 +64,9 @@
               <div class="col-md-4 mt-2">
                 <select v-model="form.carrera" class="form-select">
                   <option disabled value="">Selecciona carrera</option>
-                  <option>Ingeniería en Sistemas</option>
+                  <option>ISC</option>
                   <option>Ingeniería Industrial</option>
-                  <option>Administración</option>
+                  <option>ADMON</option>
                   <option>Contaduría</option>
                   <option>Arquitectura</option>
                   <option>Derecho</option>
@@ -97,6 +97,7 @@
 </template>
 
 <script>
+import { createAlumno } from '../services/api';
 /*
  AlumnosSR: maneja la lista de "sin registrar" que provendría de formularios externos.
  - Emite assign-alumno al padre cuando se asigna.
@@ -162,17 +163,31 @@ export default {
       this.form[campo] = this.form[campo].replace(/\D/g, '');
     },
 
-    assignToClub(index, clubName) {
-      // solicitar al padre la asignación; padre verificará cupo y lo agregará a registrados
+    async assignToClub(index, clubName) {
       const alumno = this.unregistered[index];
       if (!clubName) return this.$root.showError('Club inválido');
-      // primer, verificar cupo localmente
-      this.$emit('assign-alumno', { alumnoIndex: index, clubNombre: clubName });
-      // si el padre acepta la asignación, éste eliminará el registro de la lista "sin registrar".
-      // Para coherencia local, esperar a que parent actualice via import-unregistered o usar evento de retorno.
-      // Aquí, se intentará retirar localmente al asignar (padre también hará la operación definitiva).
-      // Intentar eliminar local si el padre no mantiene copia:
-      this.unregistered.splice(index, 1);
+      try {
+        // map clubName to id if available
+        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.nombre === clubName) : null;
+        const id_club = clubObj && clubObj.id ? clubObj.id : null;
+        const payload = {
+          nombre: alumno.nombre,
+          apellidoP: alumno.apellidoP,
+          apellidoM: alumno.apellidoM,
+          numeroControl: alumno.control,
+          telefono: alumno.telefono || null,
+          carrera_id: null,
+          semestre_id: null,
+          id_club,
+        };
+        await createAlumno(payload);
+        // solo si el backend responde OK, actualizar UI local y notificar al padre para lista registrada
+        this.$emit('assign-alumno', { alumnoIndex: index, clubNombre: clubName });
+        this.unregistered.splice(index, 1);
+        if (this.$root.showToast) this.$root.showToast(`Alumno registrado y asignado a ${clubName}`);
+      } catch (e) {
+        if (this.$root.showError) this.$root.showError(e.message || 'Error al asignar alumno');
+      }
     },
 
     removeUnregistered(index) {

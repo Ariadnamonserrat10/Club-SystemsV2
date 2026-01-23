@@ -1,9 +1,14 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
+import { getCarreras } from "../services/api";
 
 const router = useRouter();
+
+// lista de clubs y selección
+const clubsList = ref([]);
+const selectedClubId = ref(null);
 
 const userType = ref("oficina");
 const showSuccessModal = ref(false);
@@ -25,15 +30,8 @@ const form = ref({
   foto: null,
 });
 
-const carreras = [
-  "Ingeniería Civil",
-  "Ingeniería Industrial",
-  "Ingeniería en Sistemas Computacionales",
-  "Ingeniería en Gestión Empresarial",
-  "Licenciatura en Administración",
-  "Licenciatura en Arquitectura",
-  "Ingeniería en Mecatrónica",
-];
+// catálogo de carreras desde backend
+const carreras = ref([]);
 
 const selectUserType = (type) => {
   userType.value = type;
@@ -47,6 +45,28 @@ const handleImageUpload = (event) => {
     form.value.foto = URL.createObjectURL(file);
   }
 };
+
+// cargar lista de clubs (si existe endpoint)
+onMounted(async () => {
+  try {
+    const res = await axios.get("/api/getClubs.php");
+    if (res.data?.status === "success" && Array.isArray(res.data.data)) {
+      clubsList.value = res.data.data;
+    }
+  } catch (err) {
+    console.warn("No se pudieron cargar clubs (getClubs.php):", err.message);
+  }
+
+  // cargar carreras desde backend
+  try {
+    const list = await getCarreras();
+    if (Array.isArray(list)) {
+      carreras.value = list;
+    }
+  } catch (err) {
+    console.warn("No se pudieron cargar carreras (carreras.php):", err.message);
+  }
+});
 
 // 🔹 Conexión con PHP y MySQL (corregida y completa)
 const handleRegister = async () => {
@@ -75,28 +95,17 @@ const handleRegister = async () => {
   }
 
   try {
+    // enviar club_asignado si se seleccionó (mantener compatibilidad con backend)
     const payload = {
-      nombre: form.value.nombre,
-      apellidoP: form.value.apellidoP,
-      apellidoM: form.value.apellidoM,
-      usuario: form.value.usuario,
-      password: form.value.password,
-      tipo: userType.value === "oficina" ? "OFICINA" : "MONITOR"
+      ...form.value,
+      tipo: userType.value === "oficina" ? "OFICINA" : "MONITOR",
+      // el backend espera 'tipo' (OFICINA | MONITOR)
+      club_asignado: selectedClubId.value ? Number(selectedClubId.value) : null,
     };
 
-    if (userType.value === "monitor") {
-      payload.numeroControl = form.value.numeroControl;
-      payload.telefono = form.value.telefono || "";
-      // Si más adelante manejas IDs numéricos para carrera/semestre en BD, asigna aquí
-      // payload.carrera_id = Number(form.value.carrera_id) || null;
-      // payload.semestre_id = Number(form.value.semestre_id) || null;
-    }
-
-    const response = await axios.post(
-      "http://localhost/Backend/Registrar.php",
-      payload,
-      { headers: { "Content-Type": "application/json" } }
-    );
+    console.log("Enviando payload:", payload);
+    const response = await axios.post("/api/Registrar.php", payload);
+    console.log("Respuesta Registrar.php:", response.status, response.data);
 
     if (response.data.status === "success") {
       registeredUser.value = {
@@ -298,17 +307,26 @@ const goToLogin = () => {
             />
           </div>
           <div class="col-md-3">
-            <select v-model="form.carrera" class="form-select" required>
+            <select v-model.number="form.carrera" class="form-select" required>
               <option value="">Carrera</option>
-              <option v-for="c in carreras" :key="c" :value="c">{{ c }}</option>
+              <option v-for="c in carreras" :key="c.id" :value="c.id">{{ c.nombre }}</option>
             </select>
           </div>
           <div class="col-md-3">
-            <select v-model="form.semestre" class="form-select" required>
+            <select v-model.number="form.semestre" class="form-select" required>
               <option value="">Semestre</option>
               <option v-for="n in 7" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
+        </div>
+
+        <!-- Selector de club: visible solo para tipo monitor -->
+        <div v-if="userType === 'monitor'" class="mb-3">
+          <label for="clubSelect" class="form-label">Club asignado (opcional)</label>
+          <select id="clubSelect" v-model="selectedClubId" class="form-select">
+            <option :value="null">-- Ninguno --</option>
+            <option v-for="c in clubsList" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+          </select>
         </div>
 
         <!-- Datos de acceso -->

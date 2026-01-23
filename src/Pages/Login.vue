@@ -128,6 +128,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   name: "Login",
   data() {
@@ -161,28 +163,43 @@ export default {
         return;
       }
       try {
-        const res = await fetch('http://localhost/Backend/Login.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario: this.usuario, password: this.password })
+        console.log("Iniciando POST a Login.php con:", {
+          usuario: this.usuario,
+          password: this.password
         });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data || data.error || data.success === false) {
-          const msg = data?.error || 'Usuario o contraseña incorrectos';
-          this.showMessage('error', msg);
-          return;
-        }
-        const tipo = (data.usuario?.tipo || '').toUpperCase();
-        if (tipo === 'OFICINA') {
-          this.$router.push('/oficina');
-        } else if (tipo === 'MONITOR') {
-          this.$router.push('/monitor');
+
+        const response = await axios.post(
+          "/api/Login.php",
+          {
+            usuario: this.usuario,
+            password: this.password,
+            userType: this.selectedUserType
+          }
+        );
+
+        console.log("Respuesta del servidor:", response.data);
+
+        if (response.data.status === "success") {
+          console.log("✅ Login exitoso! ID:", response.data.id);
+          sessionStorage.setItem("usuarioId", String(response.data.id));
+          sessionStorage.setItem("usuarioNombre", response.data.nombre);
+          sessionStorage.setItem("usuarioTipo", response.data.tipo);
+          
+          // Redirigir según el tipo de usuario
+          if (response.data.tipo === "OFICINA") {
+            this.$router.push("/oficina");
+          } else if (response.data.tipo === "MONITOR") {
+            this.$router.push("/monitor");
+          }
         } else {
-          this.showMessage('error', 'Tipo de usuario inválido en respuesta');
+          console.log("Login rechazado:", response.data);
+          this.showMessage('error', response.data.message || "Error al iniciar sesión");
         }
-      } catch (e) {
-        console.error(e);
-        this.showMessage('error', 'No fue posible conectar al servidor');
+      } catch (error) {
+        console.error("Error en POST:", error);
+        console.error("Response data:", error.response?.data);
+        console.error("Status:", error.response?.status);
+        this.showMessage('error', error.response?.data?.message || "No se pudo conectar al servidor");
       }
     },
   },
