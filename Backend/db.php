@@ -15,4 +15,12 @@ $conexion->set_charset("utf8mb4");
 
 // Alias opcional para compatibilidad
 $conn = $conexion;
+
+// Función no intrusiva para exponer mysqli de forma estándar
+if (!function_exists('getMysqli')) {
+    function getMysqli() {
+        global $conexion;
+        return $conexion instanceof mysqli ? $conexion : null;
+    }
+}
 ?>
