@@ -12,11 +12,8 @@
       >
         <div>
           {{ club.nombre }} — Monitores: 
-          <span v-if="club.monitores && club.monitores.length">
-            {{ club.monitores.map(m => formatMonitorNombre(m)).join(', ') }}
-          </span>
-          <span v-else-if="club.monitor">
-            {{ formatMonitorNombre(club.monitor) }}
+          <span v-if="getClubMonitores(club).length">
+            {{ getClubMonitores(club).map(m => formatMonitorNombre(m)).join(', ') }}
           </span>
           <span v-else>
             Sin asignar
@@ -94,6 +91,8 @@
               <td>
                 <button
                   class="btn btn-sm btn-outline-info"
+                  :disabled="!isAcreditado(alumno)"
+                  :title="!isAcreditado(alumno) ? 'No acreditado: supera el límite de faltas' : 'Descargar constancia'"
                   @click="
                     descargarConstancia({
                       estudianteNombre:
@@ -398,7 +397,7 @@ import { getAsistenciasPorClub } from '../services/api';
 
 export default {
   name: "Constancias",
-  props: ["clubs", "alumnos", "fechas"],
+  props: ["clubs", "alumnos", "fechas", "usuarios"],
   data() {
     return {
       previewData: null,
@@ -433,12 +432,67 @@ export default {
   },
   methods: {
     formatMonitorNombre(monitor) {
-      // monitor puede ser objeto o string. Si es objeto, se espera { nombre, apellidoP, apellidoM }
+      // Acepta objeto o string y devuelve "PrimerNombre PrimerApellido"
       if (!monitor) return '';
-      if (typeof monitor === 'string') return monitor;
-      const nombre = (monitor.nombre || '').trim().split(/\s+/)[0] || '';
-      const apellidoP = (monitor.apellidoP || monitor.apellido || '').trim().split(/\s+/)[0] || '';
+      if (typeof monitor === 'string') {
+        const parts = monitor.trim().split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+        return parts[0] || '';
+      }
+      const nombre = (monitor.nombre || monitor.nombres || monitor.firstName || '').toString().trim().split(/\s+/)[0] || '';
+      const apStr = (monitor.apellidoP || monitor.apellido || monitor.apellidos || monitor.lastName || '').toString().trim();
+      const apellidoP = apStr ? apStr.split(/\s+/)[0] : '';
       return [nombre, apellidoP].filter(Boolean).join(' ');
+    },
+    getClubMonitores(club) {
+      if (!club) return [];
+      // Arrays de monitores en distintas keys
+      if (Array.isArray(club.monitores)) return club.monitores.filter(Boolean);
+      if (Array.isArray(club.monitors)) return club.monitors.filter(Boolean);
+      if (Array.isArray(club.monitor)) return club.monitor.filter(Boolean);
+      // Strings separados por coma o punto y coma
+      const str = (typeof club.monitores === 'string' && club.monitores) || (typeof club.monitors === 'string' && club.monitors) || '';
+      if (str.trim()) {
+        return str.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+      }
+      // Monitores individuales en distintas keys comunes
+      const candidatos = [
+        club.monitor,
+        club.monitorNombre,
+        club.monitor_name,
+        club.monitorFullName,
+        club.monitor1,
+        club.monitor2,
+      ].filter(Boolean);
+      if (candidatos.length) return candidatos;
+
+      // Derivar desde this.usuarios (monitores asignados)
+      const usuarios = Array.isArray(this.usuarios) ? this.usuarios : [];
+      const clubId = Number(club.id);
+      const nombreClub = (club.nombre || '').toString().trim();
+      // helper para extraer id numérico de cadenas como '80_NULL_' o similares
+      const parseId = (val) => {
+        if (val == null) return NaN;
+        const num = Number(val);
+        if (!Number.isNaN(num) && Number.isFinite(num)) return num;
+        const m = String(val).match(/\d+/);
+        return m ? Number(m[0]) : NaN;
+      };
+      const asignados = usuarios.filter(u => {
+        if (!u) return false;
+        const tipo = (u.tipo || '').toString().toUpperCase();
+        if (tipo && tipo !== 'MONITOR') return false;
+        const asignId = parseId(u.club_asignado || u.id_club || u.club_id || u.clubId);
+        const asignName = (u.club_nombre || u.clubName || u.club || '').toString().trim();
+        if (clubId && !Number.isNaN(clubId) && asignId && !Number.isNaN(asignId) && asignId === clubId) return true;
+        if (nombreClub && asignName && asignName === nombreClub) return true;
+        // también considerar responsable del club
+        const userId = parseId(u.id || u.user_id || u.usuario_id);
+        const respId = parseId(club.id_responsable);
+        if (respId && userId && respId === userId) return true;
+        return false;
+      });
+      return asignados;
     },
     async loadAsistenciasPorClubs() {
       try {
@@ -488,6 +542,7 @@ export default {
       for (const club of this.clubs) {
         const alumnos = this.filteredAlumnos(club.nombre);
         for (const a of alumnos) {
+          if (!this.isAcreditado(a)) continue; // solo acreditados
           rows.push([
             club.nombre,
             a.nombre + " " + a.apellidoP + " " + (a.apellidoM || ""),
@@ -513,7 +568,7 @@ export default {
         usuario: "Usuario Oficina",
         accion: "Exportar",
         tipo: "constancias",
-        descripcion: "Descarga de constancias",
+        descripcion: "Descarga de constancias (solo acreditados)",
       });
     },
     desempenoValor(desempeno) {
@@ -540,6 +595,11 @@ export default {
     },
     tipoActividad(nombreClub) {
       return this.isCulturalName(nombreClub) ? "CULTURAL" : "DEPORTIVA";
+    },
+    // Regla de acreditación: faltas <= 2 (ajustable)
+    isAcreditado(alumno) {
+      const faltas = Number(alumno?.faltas ?? 0);
+      return Number.isFinite(faltas) ? faltas <= 2 : false;
     },
     openConstanciaPreview(club) {
       this.previewData = {
