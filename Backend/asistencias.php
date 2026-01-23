@@ -59,7 +59,7 @@ try {
     }
 
     // Obtener alumnos del club
-    $stmtA = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM FROM alumnos WHERE id_club = ? ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC');
+    $stmtA = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM, numeroControl FROM alumnos WHERE id_club = ? ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC');
     $stmtA->bind_param('i', $clubId);
     $stmtA->execute();
     $resA = $stmtA->get_result();
