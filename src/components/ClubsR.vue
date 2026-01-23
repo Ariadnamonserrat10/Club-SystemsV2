@@ -17,7 +17,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(club, index) in clubs" :key="club.nombre + index">
+          <!-- Usamos clubsConOcupados en lugar de clubs -->
+          <tr v-for="(club, index) in clubsConOcupados" :key="(club.id || club.nombre) + '-' + index">
             <td>{{ club.nombre }}</td>
             <td>{{ club.descripcion }}</td>
             <td>{{ club.cupo }}</td>
@@ -78,13 +79,75 @@
 <script>
 export default {
   name: 'ClubsR',
-  props: ['clubs', 'fechas'],
+  // Ahora recibimos alumnos también
+  props: ['clubs', 'fechas', 'alumnos'],
   data() {
     return {
       localClub: { nombre: '', descripcion: '', cupo: 0 },
       editingIndex: null,
       pendingDeleteIndex: null
     };
+  },
+  computed: {
+    // Mapea campos que vienen de la BD a un formato uniforme y calcula ocupados.
+    clubsConOcupados() {
+      const rawClubs = Array.isArray(this.clubs) ? this.clubs : [];
+      const alumnos = Array.isArray(this.alumnos) ? this.alumnos : [];
+      const norm = (s) => {
+        const str = s == null ? '' : String(s);
+        return str
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      };
+
+      return rawClubs.map((c) => {
+        // Normalización de campos desde la BD
+        const id = c.id ?? c.ID ?? c.id_club ?? null;
+        const nombre = c.nombre ?? c.Name ?? c.titulo ?? '';
+        const descripcion = c.descripcion ?? c.description ?? '';
+        const cupo = c.cupo != null ? c.cupo : c.cupo_limite != null ? c.cupo_limite : 0;
+        // Preferimos valor de BD si existe
+        let ocupados = c.ocupados != null ? c.ocupados : c.cupo_ocupado != null ? c.cupo_ocupado : null;
+
+        // Si no viene de BD o viene 0, intentamos contar alumnos inscritos
+        if (ocupados == null || ocupados === 0) {
+          // Primero intento por id si el club tiene id
+          let ocupadosPorId = 0;
+          if (id != null) {
+            ocupadosPorId = alumnos.filter((a) => {
+              const alumnoClubId =
+                a && a.clubId != null
+                  ? a.clubId
+                  : a && a.club_id != null
+                    ? a.club_id
+                    : a && a.club && a.club.id != null
+                      ? a.club.id
+                      : null;
+              return alumnoClubId != null && String(alumnoClubId) === String(id);
+            }).length;
+          }
+
+          // Luego intento por nombre (por si los alumnos no traen id del club)
+          const ocupadosPorNombre = alumnos.filter((a) => {
+            const nombreAlumnoClub =
+              a && a.clubNombre != null
+                ? a.clubNombre
+                : a && typeof a.club === 'string'
+                  ? a.club
+                  : a && a.club && a.club.nombre
+                    ? a.club.nombre
+                    : '';
+            return norm(nombreAlumnoClub) === norm(nombre);
+          }).length;
+
+          ocupados = Math.max(ocupadosPorId, ocupadosPorNombre);
+        }
+
+        return { ...c, id, nombre, descripcion, cupo, ocupados };
+      });
+    }
   },
   methods: {
     openModal() {

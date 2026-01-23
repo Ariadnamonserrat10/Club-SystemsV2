@@ -278,7 +278,7 @@ export default {
           nombre: r.nombre,
           descripcion: r.descripcion,
           cupo: r.cupo_limite,
-          ocupados: 0,
+          ocupados: r.cupo_ocupado != null ? Number(r.cupo_ocupado) : 0,
           id_responsable: r.id_responsable,
           creado_en: r.creado_en,
           monitores: [] // inicializar array vacío para monitores
@@ -324,11 +324,16 @@ export default {
             semestre: r.semestre_id ?? '',
             control: r.numeroControl,
             telefono: r.telefono || '',
+            // Guardamos tanto id como nombre para que el conteo por ID/nombre funcione
+            clubId: r.id_club != null ? Number(r.id_club) : null,
+            club_id: r.id_club != null ? Number(r.id_club) : null,
             club: clubObj ? clubObj.nombre : '',
             faltas: 0,
             asistencias: {},
           };
         });
+        // Recalcular ocupados con los alumnos cargados
+        this.recomputeOcupados();
         this.logAction('Sistema', 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
         this.showToast('Alumnos cargados');
       } catch (e) {
@@ -559,6 +564,41 @@ export default {
       this.alumnos = Array.isArray(list) ? list : [];
       this.logAction(actor, 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
       this.showToast('Alumnos cargados');
+    },
+
+    // Recalcula ocupados por club combinando conteo por id y por nombre, y respetando cupo_ocupado si existe
+    recomputeOcupados() {
+      const norm = (s) => (s == null ? '' : String(s)).trim().toLowerCase();
+      const alumnos = Array.isArray(this.alumnos) ? this.alumnos : [];
+      const clubs = Array.isArray(this.clubs) ? this.clubs : [];
+      this.clubs = clubs.map((club) => {
+        const id = club && club.id != null ? club.id : null;
+        const porId = alumnos.filter((a) => {
+          const alumnoClubId =
+            a && a.clubId != null
+              ? a.clubId
+              : a && a.club_id != null
+                ? a.club_id
+                : a && a.club && a.club.id != null
+                  ? a.club.id
+                  : null;
+          return alumnoClubId != null && String(alumnoClubId) === String(id);
+        }).length;
+        const porNombre = alumnos.filter((a) => {
+          const nombreAlumnoClub =
+            a && a.clubNombre != null
+              ? a.clubNombre
+              : a && typeof a.club === 'string'
+                ? a.club
+                : a && a.club && a.club.nombre
+                  ? a.club.nombre
+                  : '';
+          return norm(nombreAlumnoClub) === norm(club.nombre);
+        }).length;
+        const base = club && club.cupo_ocupado != null ? Number(club.cupo_ocupado) : (club.ocupados || 0);
+        const ocupados = Math.max(base, porId, porNombre);
+        return { ...club, ocupados };
+      });
     },
 
     // auditoría helper
