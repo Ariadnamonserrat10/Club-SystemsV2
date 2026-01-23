@@ -15,9 +15,6 @@
           <span v-if="club.monitores && club.monitores.length">
             {{ club.monitores.map(m => formatMonitorNombre(m)).join(', ') }}
           </span>
-          <span v-else-if="club.monitor">
-            {{ formatMonitorNombre(club.monitor) }}
-          </span>
           <span v-else>
             Sin asignar
           </span>
