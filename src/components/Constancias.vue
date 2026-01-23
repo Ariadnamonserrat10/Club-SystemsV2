@@ -11,13 +11,11 @@
         class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
       >
         <div>
-          {{ club.nombre }} — Monitores: 
+          {{ club.nombre }} — Monitores:
           <span v-if="club.monitores && club.monitores.length">
-            {{ club.monitores.map(m => formatMonitorNombre(m)).join(', ') }}
+            {{ club.monitores.map((m) => formatMonitorNombre(m)).join(", ") }}
           </span>
-          <span v-else>
-            Sin asignar
-          </span>
+          <span v-else> Sin asignar </span>
         </div>
         <div class="d-flex gap-2">
           <button
@@ -55,7 +53,7 @@
           <tbody>
             <tr
               v-for="(alumno, i) in filteredAlumnos(club.nombre)"
-              :key="alumno.id || alumno.control || ('c-' + i)"
+              :key="alumno.id || alumno.control || 'c-' + i"
             >
               <td>
                 {{ alumno.nombre }} {{ alumno.apellidoP }}
@@ -81,9 +79,7 @@
               </td>
               <td>
                 <span
-                  :class="
-                    alumno.faltas <= 2 ? 'text-success' : 'text-danger'
-                  "
+                  :class="alumno.faltas <= 2 ? 'text-success' : 'text-danger'"
                 >
                   {{ alumno.faltas <= 2 ? "Sí" : "No" }}
                 </span>
@@ -92,30 +88,13 @@
                 <button
                   class="btn btn-sm btn-outline-info"
                   :disabled="!isAcreditado(alumno)"
-                  :title="!isAcreditado(alumno) ? 'No acreditado: supera el límite de faltas' : 'Descargar constancia'"
+                  :title="
+                    !isAcreditado(alumno)
+                      ? 'No acreditado: supera el límite de faltas'
+                      : 'Descargar constancia'
+                  "
                   @click="
-                    descargarConstancia({
-                      estudianteNombre:
-                        `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
-                      numeroControl: alumno.control,
-                      carrera:
-                        alumno.carrera ||
-                        'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
-                      club: (
-                        alumno.club ||
-                        club.nombre ||
-                        ''
-                      ).toLowerCase(),
-                      desempeno: (
-                        alumno.desempeno ||
-                        (alumno.faltas <= 1
-                          ? 'EXCELENTE'
-                          : alumno.faltas === 2
-                            ? 'BUENO'
-                            : 'REGULAR')
-                      ).toString(),
-                      periodo: alumno.periodo || periodoActual,
-                    })
+                    descargarConstancia(alumno, club.nombre, periodoActual)
                   "
                 >
                   Descargar
@@ -166,7 +145,7 @@
               </td>
 
               <!-- Título -->
-              <td style="border: 1px solid #000; vertical-align: middle">
+              <td style="vertical-align: middle">
                 Constancia de cumplimiento de actividad Cultural y/o Deportiva
               </td>
 
@@ -208,7 +187,7 @@
 
             <tr>
               <!-- Norma -->
-              <td style="border: 1px solid; vertical-align: middle">
+              <td style="border-left: 1px solid #000; border-top: none; border-bottom: none; border-right: none; vertical-align: middle">
                 Referencia a la Norma ISO 9001:2015&nbsp;&nbsp;&nbsp;8.1
               </td>
             </tr>
@@ -216,7 +195,7 @@
 
           <h2
             class="titulo-constancia"
-            style="font-size: 11pt; margin: 60px 0 15px 0"
+            style="font-size: 11pt; margin: 90px 0 15px 0"
           >
             CONSTANCIA DE CUMPLIMIENTO DE ACTIVIDAD CULTURAL Y/O DEPORTIVA
           </h2>
@@ -228,6 +207,7 @@
               class="destinatario"
               style="font-size: 10pt; margin: 0 0 20px 0; line-height: 1.6"
             >
+            <br><br>
               C. BLANCA ANSELMA CASTRO CASTRO<br />
               JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br />
               PRESENTE
@@ -239,9 +219,7 @@
               La que suscribe Olimpia Cruz Reyes, Jefa del Departamento de
               Actividades Extraescolares, por este medio se permite hacer de su
               conocimiento que la estudiante
-              <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con
-              número de control
-              <strong>{{ toUpper(previewData.numeroControl) }}</strong> de la
+              <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con número de control <strong>{{ previewData.numeroControl }}</strong> de la
               carrera de <strong>{{ toUpper(previewData.carrera) }}</strong
               >, ha cumplido su actividad extraescolar en el club de
               <strong>{{ toUpper(previewData.club) }}</strong> con el nivel de
@@ -265,16 +243,17 @@
 
             <table
               class="tabla-firmas"
-              style="width: 100%; border-collapse: collapse"
+              style="width: 100%; border-collapse: collapse "
             >
-              <tr>
+              <tr style="border: none !important;">
                 <td
                   style="
                     width: 50%;
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
+                    
                   "
                 >
                   ATENTAMENTE
@@ -285,23 +264,23 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
-                >
+                  >
                   Vo. Bo.
                 </td>
               </tr>
-              <tr>
-                <td colspan="2" class="espacios-firma-grandes"></td>
+              <tr style="border: none !important;">
+                <td colspan="2" class="espacios-firma-grandes" style="border: none !important;"></td>
               </tr>
-              <tr>
+              <tr style="border: none !important;">
                 <td
                   style="
                     width: 50%;
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
                 >
                   <div class="linea-firma"></div>
@@ -316,7 +295,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
                 >
                   <div class="linea-firma"></div>
@@ -333,9 +312,10 @@
             </div>
 
             <table class="tabla-pie">
-              <tr>
-                <td class="pie-izq">TecNM-VI-PO-003-05</td>
-                <td class="pie-der">Rev. 0</td>
+              <br>
+              <tr style="border: none !important;">
+                <td class="pie-izq" style="border: none !important;">TecNM-VI-PO-003-05</td>
+                <td class="pie-der" style="border: none !important;">Rev. 0</td>
               </tr>
             </table>
           </div>
@@ -393,7 +373,7 @@
 </template>
 
 <script>
-import { getAsistenciasPorClub } from '../services/api';
+import { getAsistenciasPorClub } from "../services/api";
 
 export default {
   name: "Constancias",
@@ -403,7 +383,7 @@ export default {
       previewData: null,
       periodoActual: this.getPeriodoActual(),
       alumnosPorClub: {}, // Objeto que almacena alumnos por club_id
-      fechasData: [] // Fechas desde BD
+      fechasData: [], // Fechas desde BD
     };
   },
   computed: {
@@ -433,16 +413,28 @@ export default {
   methods: {
     formatMonitorNombre(monitor) {
       // Acepta objeto o string y devuelve "PrimerNombre PrimerApellido"
-      if (!monitor) return '';
-      if (typeof monitor === 'string') {
+      if (!monitor) return "";
+      if (typeof monitor === "string") {
         const parts = monitor.trim().split(/\s+/).filter(Boolean);
         if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
-        return parts[0] || '';
+        return parts[0] || "";
       }
-      const nombre = (monitor.nombre || monitor.nombres || monitor.firstName || '').toString().trim().split(/\s+/)[0] || '';
-      const apStr = (monitor.apellidoP || monitor.apellido || monitor.apellidos || monitor.lastName || '').toString().trim();
-      const apellidoP = apStr ? apStr.split(/\s+/)[0] : '';
-      return [nombre, apellidoP].filter(Boolean).join(' ');
+      const nombre =
+        (monitor.nombre || monitor.nombres || monitor.firstName || "")
+          .toString()
+          .trim()
+          .split(/\s+/)[0] || "";
+      const apStr = (
+        monitor.apellidoP ||
+        monitor.apellido ||
+        monitor.apellidos ||
+        monitor.lastName ||
+        ""
+      )
+        .toString()
+        .trim();
+      const apellidoP = apStr ? apStr.split(/\s+/)[0] : "";
+      return [nombre, apellidoP].filter(Boolean).join(" ");
     },
     getClubMonitores(club) {
       if (!club) return [];
@@ -451,9 +443,15 @@ export default {
       if (Array.isArray(club.monitors)) return club.monitors.filter(Boolean);
       if (Array.isArray(club.monitor)) return club.monitor.filter(Boolean);
       // Strings separados por coma o punto y coma
-      const str = (typeof club.monitores === 'string' && club.monitores) || (typeof club.monitors === 'string' && club.monitors) || '';
+      const str =
+        (typeof club.monitores === "string" && club.monitores) ||
+        (typeof club.monitors === "string" && club.monitors) ||
+        "";
       if (str.trim()) {
-        return str.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+        return str
+          .split(/[;,]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
       }
       // Monitores individuales en distintas keys comunes
       const candidatos = [
@@ -469,7 +467,7 @@ export default {
       // Derivar desde this.usuarios (monitores asignados)
       const usuarios = Array.isArray(this.usuarios) ? this.usuarios : [];
       const clubId = Number(club.id);
-      const nombreClub = (club.nombre || '').toString().trim();
+      const nombreClub = (club.nombre || "").toString().trim();
       // helper para extraer id numérico de cadenas como '80_NULL_' o similares
       const parseId = (val) => {
         if (val == null) return NaN;
@@ -478,13 +476,24 @@ export default {
         const m = String(val).match(/\d+/);
         return m ? Number(m[0]) : NaN;
       };
-      const asignados = usuarios.filter(u => {
+      const asignados = usuarios.filter((u) => {
         if (!u) return false;
-        const tipo = (u.tipo || '').toString().toUpperCase();
-        if (tipo && tipo !== 'MONITOR') return false;
-        const asignId = parseId(u.club_asignado || u.id_club || u.club_id || u.clubId);
-        const asignName = (u.club_nombre || u.clubName || u.club || '').toString().trim();
-        if (clubId && !Number.isNaN(clubId) && asignId && !Number.isNaN(asignId) && asignId === clubId) return true;
+        const tipo = (u.tipo || "").toString().toUpperCase();
+        if (tipo && tipo !== "MONITOR") return false;
+        const asignId = parseId(
+          u.club_asignado || u.id_club || u.club_id || u.clubId,
+        );
+        const asignName = (u.club_nombre || u.clubName || u.club || "")
+          .toString()
+          .trim();
+        if (
+          clubId &&
+          !Number.isNaN(clubId) &&
+          asignId &&
+          !Number.isNaN(asignId) &&
+          asignId === clubId
+        )
+          return true;
         if (nombreClub && asignName && asignName === nombreClub) return true;
         // también considerar responsable del club
         const userId = parseId(u.id || u.user_id || u.usuario_id);
@@ -497,37 +506,48 @@ export default {
     async loadAsistenciasPorClubs() {
       try {
         // Cargar asistencias para cada club
-        for (const club of (this.clubs || [])) {
+        for (const club of this.clubs || []) {
           if (club.id) {
             try {
               const data = await getAsistenciasPorClub(club.id);
-              this.alumnosPorClub[club.id] = Array.isArray(data.alumnos) ? data.alumnos : [];
+              this.alumnosPorClub[club.id] = Array.isArray(data.alumnos)
+                ? data.alumnos
+                : [];
 
               // Agregar fechas únicas
               if (Array.isArray(data.fechas)) {
-                this.fechasData = [...new Set([...this.fechasData, ...data.fechas])].sort();
+                this.fechasData = [
+                  ...new Set([...this.fechasData, ...data.fechas]),
+                ].sort();
               }
 
               // Mapear asistencias
               const asist = data.asistencias || {};
-              this.alumnosPorClub[club.id] = (this.alumnosPorClub[club.id] || []).map(al => {
+              this.alumnosPorClub[club.id] = (
+                this.alumnosPorClub[club.id] || []
+              ).map((al) => {
                 const map = { ...(asist[al.id] || {}) };
-                const faltas = Object.values(map).filter(v => v === false).length;
+                const faltas = Object.values(map).filter(
+                  (v) => v === false,
+                ).length;
                 return { ...al, asistencias: map, faltas };
               });
             } catch (e) {
-              console.error(`Error cargando asistencias para club ${club.id}:`, e);
+              console.error(
+                `Error cargando asistencias para club ${club.id}:`,
+                e,
+              );
               this.alumnosPorClub[club.id] = [];
             }
           }
         }
       } catch (e) {
-        console.error('Error cargando asistencias por clubs:', e);
+        console.error("Error cargando asistencias por clubs:", e);
       }
     },
     filteredAlumnos(clubName) {
       // Buscar el club por nombre
-      const club = (this.clubs || []).find(c => c.nombre === clubName);
+      const club = (this.clubs || []).find((c) => c.nombre === clubName);
 
       // Si tenemos datos de BD para este club, usarlos
       if (club && club.id && this.alumnosPorClub[club.id]) {
@@ -535,7 +555,7 @@ export default {
       }
 
       // Fallback a props
-      return (this.alumnos || []).filter(a => a.club === clubName);
+      return (this.alumnos || []).filter((a) => a.club === clubName);
     },
     downloadAll() {
       const rows = [];
@@ -618,37 +638,68 @@ export default {
         ...data,
       };
     },
-    descargarConstancia(data) {
+    descargarConstancia(alumno, clubNombre, periodoActual) {
+      // Construir datos de la constancia
+      const data = {
+        estudianteNombre: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+        numeroControl: alumno.numeroControl || 'SIN CONTROL',
+        carrera: alumno.carrera || 'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
+        club: (alumno.club || clubNombre || '').toLowerCase(),
+        desempeno: (
+          alumno.desempeno ||
+          (alumno.faltas <= 1
+            ? 'EXCELENTE'
+            : alumno.faltas === 2
+              ? 'BUENO'
+              : 'REGULAR')
+        ).toString(),
+        periodo: alumno.periodo || periodoActual,
+      };
+      
       this.previewData = {
         tipoActividad: this.tipoActividad(data.club),
         ...data,
       };
     },
     generarPDF() {
-      const nodo = document.getElementById("constancia");
-      if (!nodo || !this.previewData) return;
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const nodo = document.getElementById("constancia");
+          if (!nodo || !this.previewData) return;
 
-      const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
-      const opt = {
-        margin: [15, 15, 15, 15],
-        filename: `Constancia_${nombre}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
-      };
+          const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
+          const opt = {
+            margin: [15, 15, 15, 15],
+            filename: `Constancia_${nombre}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { 
+              scale: 2,
+              allowTaint: true,
+              useCORS: true,
+              logging: false,
+              windowHeight: nodo.scrollHeight
+            },
+            jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
+          };
 
-      // Cargar html2pdf desde CDN
-      if (typeof html2pdf === "undefined") {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-        document.head.appendChild(script);
-        script.onload = () => {
-          html2pdf().set(opt).from(nodo).save();
-        };
-      } else {
-        html2pdf().set(opt).from(nodo).save();
-      }
+          // Cargar html2pdf desde CDN
+          if (typeof html2pdf === "undefined") {
+            const script = document.createElement("script");
+            script.src =
+              "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            document.head.appendChild(script);
+            script.onload = () => {
+              setTimeout(() => {
+                html2pdf().set(opt).from(nodo).save();
+              }, 200);
+            };
+          } else {
+            setTimeout(() => {
+              html2pdf().set(opt).from(nodo).save();
+            }, 200);
+          }
+        }, 300);
+      });
     },
     toUpper(v) {
       return (v == null ? "" : String(v)).toUpperCase();
@@ -674,19 +725,19 @@ export default {
         .firmas .nombre { font-weight: bold; }
         .firmas .cargo { font-size: 11px; }
       `;
-    }
+    },
   },
   watch: {
     clubs: {
       handler() {
         this.loadAsistenciasPorClubs();
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   mounted() {
     this.loadAsistenciasPorClubs();
-  }
+  },
 };
 </script>
 
@@ -714,14 +765,17 @@ export default {
 
 .print-preview .A4 {
   background: #fff;
-  max-width: 215.9mm;
-  padding: 15mm;
+  width: 215.9mm;
+  height: 279.4mm;
+  padding: 13mm 13mm 13mm 13mm;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  width: 100%;
   font-family: Arial, sans-serif;
   color: #000;
-  font-size: 11pt;
+  font-size: 10pt;
   line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Tablas */
@@ -812,11 +866,11 @@ export default {
   text-align: center;
   font-size: 12pt;
   font-weight: bold;
-  margin: 50px 0 20px 0;
+  margin: 50px 0 15px 0;
 }
 
 .espacios {
-  height: 20px;
+  height: 10px;
 }
 
 .espacios-mediano {
@@ -824,16 +878,20 @@ export default {
 }
 
 .espacios-firma {
-  height: 30px;
+  height: 60px;
 }
 
 .espacios-firma-grandes {
-  height: 80px;
+  height: 100px;
 }
 
 .cuerpo {
   font-size: 11pt;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1;
 }
 
 .destinatario {
@@ -860,6 +918,18 @@ export default {
   width: 100%;
   border-collapse: collapse;
   margin-top: 30px;
+  border: none;
+  border-color: transparent;
+}
+
+.tabla-firmas tr {
+  border: none;
+  border-color: transparent;
+}
+
+.tabla-firmas td {
+  border: none;
+  border-color: transparent;
 }
 
 .celda-firma-iz,
@@ -868,6 +938,7 @@ export default {
   text-align: center;
   font-weight: bold;
   padding: 5px;
+  border-color: transparent;
 }
 
 .celda-firma-nombre {
@@ -903,20 +974,30 @@ export default {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  border-top: 1px solid #000;
+  border: none;
   padding-top: 5px;
+}
+
+.tabla-pie tr {
+  border: none;
+}
+
+.tabla-pie td {
+  border: none;
 }
 
 .pie-izq {
   text-align: left;
   font-size: 9pt;
   padding-top: 5px;
+  border: none;
 }
 
 .pie-der {
   text-align: right;
   font-size: 9pt;
   padding-top: 5px;
+  border: none;
 }
 
 .acciones-preview {
@@ -979,6 +1060,42 @@ export default {
 .botones-acciones button {
   padding: 10px 20px;
   font-weight: 600;
+}
+
+/* Estilos para expandir contenido en la hoja */
+.print-preview .A4 table {
+  border-collapse: collapse;
+}
+
+.print-preview .A4 table thead {
+  background-color: #f5f5f5;
+  display: table-header-group;
+}
+
+.print-preview .A4 table tr {
+  page-break-inside: avoid;
+}
+
+.print-preview .A4 > * {
+  margin: 0;
+  padding: 0;
+}
+
+.cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cuerpo table {
+  margin: 5px 0;
+  font-size: 9pt;
+}
+
+.cuerpo table th,
+.cuerpo table td {
+  padding: 3px 4px;
+  border: 0.5pt solid #000;
 }
 
 @media (max-width: 1200px) {
