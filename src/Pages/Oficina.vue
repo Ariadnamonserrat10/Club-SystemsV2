@@ -77,6 +77,15 @@
             <a
               href="#"
               class="nav-link text-white"
+              @click.prevent="setView('CarrerasR')"
+              >Gestionar carreras</a
+            >
+          </li>
+
+          <li class="nav-item">
+            <a
+              href="#"
+              class="nav-link text-white"
               @click.prevent="setView('Auditoria')"
               >Auditoría</a
             >
@@ -113,6 +122,7 @@
         @set-alumnos="handleSetAlumnos"
         @update-alumno="handleUpdateAlumno"
         @request-reload-alumnos="loadAlumnos"
+        @refresh-carreras="loadCarreras"
       />
     </div>
 
@@ -144,7 +154,8 @@ import AlumnosR from "../components/AlumnosR.vue";
 import Constancias from "../components/Constancias.vue";
 import Auditoria from "../components/Auditoria.vue";
 import Listas from "../components/Listas.vue";
-import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs } from "../services/api";
+import CarrerasR from "../components/CarrerasR.vue";
+import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, registrarAuditoria, getCarreras } from "../services/api";
 import axios from "axios";
 
 export default {
@@ -157,6 +168,7 @@ export default {
     Constancias,
     Auditoria,
     Listas,
+    CarrerasR,
   },
   data() {
     return {
@@ -170,15 +182,7 @@ export default {
       currentView: "ClubsR",
       clubs: [], // se cargará desde API más adelante
 
-      carreras: [
-        { id: 1, nombre: 'Ingeniería Civil' },
-        { id: 2, nombre: 'Ingeniería Industrial' },
-        { id: 3, nombre: 'Ingeniería en Sistemas Computacionales' },
-        { id: 4, nombre: 'Ingeniería en Gestión Empresarial' },
-        { id: 5, nombre: 'Licenciatura en Administración' },
-        { id: 6, nombre: 'Licenciatura en Arquitectura' },
-        { id: 7, nombre: 'Ingeniería en Mecatrónica' },
-      ],
+      carreras: [],
 
       alumnos: [
         {
@@ -304,6 +308,14 @@ export default {
       }
     },
 
+    async loadCarreras() {
+      try {
+        this.carreras = await getCarreras();
+      } catch (e) {
+        this.showError(e.message || 'No se pudo cargar carreras');
+      }
+    },
+
     async loadAlumnos() {
       try {
         const rows = await getAlumnos();
@@ -334,7 +346,6 @@ export default {
         });
         // Recalcular ocupados con los alumnos cargados
         this.recomputeOcupados();
-        this.logAction('Sistema', 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
         this.showToast('Alumnos cargados');
       } catch (e) {
         this.showError(e.message || 'No se pudo cargar alumnos');
@@ -562,7 +573,6 @@ export default {
 
     handleSetAlumnos(list, actor = 'Sistema') {
       this.alumnos = Array.isArray(list) ? list : [];
-      this.logAction(actor, 'Cargar', 'alumno', `Se cargaron ${this.alumnos.length} alumnos desde BD`);
       this.showToast('Alumnos cargados');
     },
 
@@ -601,8 +611,9 @@ export default {
       });
     },
 
-    // auditoría helper
-    logAction(usuario, accion, tipo, descripcion) {
+    // auditoría helper - ahora guarda en BD
+    async logAction(usuario, accion, tipo, descripcion) {
+      // Guardar en memoria local (para compatibilidad)
       this.auditoria.unshift({
         fecha: new Date().toLocaleString(),
         usuario,
@@ -610,6 +621,20 @@ export default {
         tipo,
         descripcion,
       });
+
+      // Guardar en base de datos
+      try {
+        const usuarioId = sessionStorage.getItem('usuarioId');
+        if (usuarioId) {
+          await registrarAuditoria({
+            id_usuario: parseInt(usuarioId),
+            accion: accion,
+            descripcion: `${tipo}: ${descripcion}`
+          });
+        }
+      } catch (e) {
+        console.error('Error registrando auditoría:', e);
+      }
     },
 
     // mensajes
@@ -667,6 +692,7 @@ export default {
   }
   
   await this.cargarUsuarioActual();
+  await this.loadCarreras();
   await this.loadClubs();
   await this.loadAlumnos();
 },
