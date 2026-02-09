@@ -60,6 +60,37 @@ export async function getCarreras() {
   return data.data || [];
 }
 
+export async function createCarrera(payload) {
+  const res = await fetch(CARRERAS_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || 'Error al crear carrera');
+  return data.data;
+}
+
+export async function updateCarrera(id, payload) {
+  const url = `${CARRERAS_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || 'Error al actualizar carrera');
+  return data.data;
+}
+
+export async function deleteCarrera(id) {
+  const url = `${CARRERAS_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || 'Error al eliminar carrera');
+  return data;
+}
+
 // Asistencias
 export async function getAsistenciasPorClub(clubId) {
   const url = `${ASISTENCIAS_BASE}?club_id=${encodeURIComponent(clubId)}`;
@@ -203,4 +234,63 @@ export async function updateAlumno(id, payload) {
     throw new Error(msg);
   }
   return data.data;
+}
+
+export async function deleteAlumno(id) {
+  const url = `${ALUMNOS_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  const data = await toJson(res);
+  if (!res.ok) {
+    const msg = data?.message || data?.error || 'Error al eliminar alumno';
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// Auditoría
+const AUDITORIA_BASE = '/api/auditoria.php';
+
+export async function getAuditoria() {
+  const res = await fetch(AUDITORIA_BASE, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener auditoría');
+  return data.data || [];
+}
+
+export async function registrarAuditoria({ id_usuario, accion, descripcion }) {
+  const res = await fetch(AUDITORIA_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_usuario, accion, descripcion })
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al registrar auditoría');
+  return data.data;
+}
+// Evaluación
+export async function saveEvaluacion(payload) {
+  const res = await fetch('/api/evaluacion.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al guardar evaluación');
+  return data;
+}
+
+export async function getEvaluacion(params) {
+  const q = new URLSearchParams(params).toString();
+  const res = await fetch('/api/evaluacion.php?' + q);
+  const data = await toJson(res);
+  if (data.status === 'error') throw new Error(data.message || 'Error en el servidor');
+  return data.data; // object or null
+}
+
+export async function getEvaluatedStudents(clubName) {
+  const q = new URLSearchParams({ type: 'list', nombre_club: clubName }).toString();
+  const res = await fetch('/api/evaluacion.php?' + q);
+  const data = await toJson(res);
+  if (data.status === 'error') throw new Error(data.message || 'Error en el servidor');
+  return data.data; // array
 }

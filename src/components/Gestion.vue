@@ -172,6 +172,11 @@ export default {
         const payload = { ...this.form, foto: fotoPath };
         if (!payload.password) delete payload.password; // no enviar si está vacío
         await updateUsuario(this.selectedId, payload);
+        this.$emit('log', {
+          accion: 'Editar',
+          tipo: 'usuario',
+          descripcion: `Se actualizó el usuario "${payload.usuario}" (${payload.nombre} ${payload.apellidoP})`
+        });
         await this.loadUsuarios();
         this.closeModal();
       } catch (e) {
@@ -183,6 +188,11 @@ export default {
       if (!confirm(`¿Eliminar usuario ${u.nombre}?`)) return;
       try {
         await deleteUsuario(u.id);
+        this.$emit('log', {
+          accion: 'Eliminar',
+          tipo: 'usuario',
+          descripcion: `Se eliminó el usuario "${u.usuario}" (${u.nombre} ${u.apellidoP})`
+        });
         await this.loadUsuarios();
       } catch (e) {
         console.error(e);

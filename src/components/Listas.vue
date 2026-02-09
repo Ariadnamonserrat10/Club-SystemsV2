@@ -64,7 +64,6 @@
       Selecciona un club para mostrar su lista.
     </div>
 
-    <!-- Vista previa / Plantilla imprimible -->
     <div v-if="previewData" class="print-preview">
       <div class="preview-documento">
         <div class="constancia A4" id="constancia">
@@ -99,7 +98,7 @@
               </td>
 
               <!-- Título -->
-              <td style="border: 1px solid #000; vertical-align: middle">
+              <td style="border: none; vertical-align: middle">
                 Constancia de cumplimiento de actividad Cultural y/o Deportiva
               </td>
 
@@ -141,7 +140,7 @@
 
             <tr>
               <!-- Norma -->
-              <td style="border: 1px solid; vertical-align: middle">
+              <td style="border: none; vertical-align: middle">
                 Referencia a la Norma ISO 9001:2015&nbsp;&nbsp;&nbsp;8.1
               </td>
             </tr>
@@ -149,7 +148,7 @@
 
           <h2
             class="titulo-constancia"
-            style="font-size: 11pt; margin: 60px 0 15px 0"
+            style="font-size: 11pt; margin: 90px 0 15px 0"
           >
             CONSTANCIA DE CUMPLIMIENTO DE ACTIVIDAD CULTURAL Y/O DEPORTIVA
           </h2>
@@ -161,6 +160,7 @@
               class="destinatario"
               style="font-size: 10pt; margin: 0 0 20px 0; line-height: 1.6"
             >
+            <br><br>
               C. BLANCA ANSELMA CASTRO CASTRO<br />
               JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br />
               PRESENTE
@@ -172,18 +172,15 @@
               La que suscribe Olimpia Cruz Reyes, Jefa del Departamento de
               Actividades Extraescolares, por este medio se permite hacer de su
               conocimiento que la estudiante
-              <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con
-              número de control
-              <strong>{{ toUpper(previewData.numeroControl) }}</strong> de la
+              <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con número de control <strong>{{ previewData.numeroControl }}</strong> de la
               carrera de <strong>{{ toUpper(previewData.carrera) }}</strong
               >, ha cumplido su actividad extraescolar en el club de
               <strong>{{ toUpper(previewData.club) }}</strong> con el nivel de
               desempeño <strong>{{ toUpper(previewData.desempeno) }}</strong> y
               un valor numérico de
-              <strong>{{ desempenoValor(previewData.desempeno) }}</strong>
-              durante el periodo escolar
-              <strong>{{ toUpper(previewData.periodo) }}</strong
-              >, con un valor curricular de 1 crédito.
+              <strong>{{ previewData.valorNumerico || desempenoValor(previewData.desempeno) }}</strong>
+               durante el periodo escolar
+              <strong>{{ toUpper(previewData.mesInicio) }} - {{ toUpper(previewData.mesFin) }} {{ previewData.anioPeriodo }}</strong>, con un valor curricular de 1 crédito.
             </p>
 
             <div class="espacios"></div>
@@ -198,16 +195,17 @@
 
             <table
               class="tabla-firmas"
-              style="width: 100%; border-collapse: collapse"
+              style="width: 100%; border-collapse: collapse "
             >
-              <tr>
+              <tr style="border: none !important;">
                 <td
                   style="
                     width: 50%;
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
+                    
                   "
                 >
                   ATENTAMENTE
@@ -218,23 +216,23 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
-                >
+                  >
                   Vo. Bo.
                 </td>
               </tr>
-              <tr>
-                <td colspan="2" class="espacios-firma-grandes"></td>
+              <tr style="border: none !important;">
+                <td colspan="2" class="espacios-firma-grandes" style="border: none !important;"></td>
               </tr>
-              <tr>
+              <tr style="border: none !important;">
                 <td
                   style="
                     width: 50%;
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
                 >
                   <div class="linea-firma"></div>
@@ -249,7 +247,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none;
+                    border: none !important;
                   "
                 >
                   <div class="linea-firma"></div>
@@ -266,9 +264,10 @@
             </div>
 
             <table class="tabla-pie">
-              <tr>
-                <td class="pie-izq">TecNM-VI-PO-003-05</td>
-                <td class="pie-der">Rev. 0</td>
+              <br>
+              <tr style="border: none !important;">
+                <td class="pie-izq" style="border: none !important;">TecNM-VI-PO-003-05</td>
+                <td class="pie-der" style="border: none !important;">Rev. 0</td>
               </tr>
             </table>
           </div>
@@ -280,33 +279,45 @@
         <div class="campos-editar">
           <div class="campo">
             <label>Período:</label>
-            <input
-              v-model="previewData.periodo"
-              type="text"
-              class="form-control form-control-sm"
-            />
-          </div>
-          <div class="campo">
-            <label>Desempeño:</label>
-            <select
-              v-model="previewData.desempeno"
-              class="form-select form-select-sm"
-            >
-              <option value="EXCELENTE">EXCELENTE</option>
-              <option value="BUENO">BUENO</option>
-              <option value="REGULAR">REGULAR</option>
-              <option value="INSUFICIENTE">INSUFICIENTE</option>
-            </select>
-          </div>
-          <div class="campo">
-            <label>Tipo de club:</label>
-            <select
-              v-model="previewData.tipoActividad"
-              class="form-select form-select-sm"
-            >
-              <option value="CULTURAL">CULTURAL</option>
-              <option value="DEPORTIVA">DEPORTIVA</option>
-            </select>
+            <div class="d-flex gap-2">
+              <select v-model="previewData.mesInicio" class="form-select form-select-sm">
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre">Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+              </select>
+              <span class="align-self-center">-</span>
+              <select v-model="previewData.mesFin" class="form-select form-select-sm">
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre">Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+              </select>
+              <input
+                v-model="previewData.anioPeriodo"
+                type="number"
+                min="2020"
+                max="2030"
+                class="form-control form-control-sm"
+                style="width: 100px"
+              />
+            </div>
           </div>
         </div>
         <div class="botones-acciones">
@@ -326,10 +337,10 @@
 </template>
 
 <script>
-import { getAsistenciasPorClub } from "../services/api";
+import { getAsistenciasPorClub, getEvaluacion } from "../services/api";
 export default {
   name: "Listas",
-  props: ["clubs", "alumnos", "fechas"],
+  props: ["clubs", "alumnos", "fechas", "carreras"],
   data() {
     return {
       clubSeleccionado: "",
@@ -462,16 +473,18 @@ export default {
       return (v == null ? "" : String(v)).toUpperCase();
     },
     desempenoValor(desempeno) {
-      const mapa = { EXCELENTE: 4, BUENO: 3, REGULAR: 2, DEFICIENTE: 1 };
+      const mapa = { EXCELENTE: 4, NOTABLE: 4, BUENO: 3, REGULAR: 2, SUFICIENTE: 2, DEFICIENTE: 1, INSUFICIENTE: 1 };
       return mapa[(desempeno || "").toUpperCase()] || 0;
     },
     getPeriodoActual() {
       const f = new Date();
       const mes = f.getMonth();
       const anio = f.getFullYear();
-      return mes >= 0 && mes <= 5
-        ? `Enero-Junio ${anio}`
-        : `Agosto-Diciembre ${anio}`;
+      if (mes >= 0 && mes <= 5) {
+        return { mesInicio: 'Enero', mesFin: 'Junio', anioPeriodo: anio };
+      } else {
+        return { mesInicio: 'Agosto', mesFin: 'Diciembre', anioPeriodo: anio };
+      }
     },
     isCulturalName(nombre) {
       const n = (nombre || "").toString().trim().toLowerCase();
@@ -486,55 +499,97 @@ export default {
     tipoActividad(nombreClub) {
       return this.isCulturalName(nombreClub) ? "CULTURAL" : "DEPORTIVA";
     },
-    imprimirConstancia(alumno) {
-      const club = alumno.club || this.clubSeleccionado || "";
+    async imprimirConstancia(alumno) {
+      const clubNombre = this.clubSeleccionado || "";
+      const periodo = this.getPeriodoActual();
+      let desempeno = '';
+      let valorNumerico = null;
+
+      try {
+        const nombreFull = `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim();
+        const evalData = await getEvaluacion({ 
+          nombre_estudiante: nombreFull, 
+          nombre_club: (alumno.club || clubNombre || '') 
+        });
+
+        if (evalData) {
+          const nivel = parseInt(evalData.nivel_desempeno);
+          if (nivel === 4) desempeno = 'NOTABLE';
+          else if (nivel === 3) desempeno = 'BUENO';
+          else if (nivel === 2) desempeno = 'SUFICIENTE';
+          else desempeno = 'INSUFICIENTE';
+          valorNumerico = parseInt(evalData.valor_numerico);
+        }
+      } catch (e) {
+        console.error('Error obteniendo evaluación:', e);
+      }
+
       const data = {
-        estudianteNombre:
-          `${alumno.nombre || ""} ${alumno.apellidoP || ""} ${alumno.apellidoM || ""}`.trim(),
-        numeroControl: alumno.control || "",
-        carrera: alumno.carrera || "INGENIERÍA EN SISTEMAS COMPUTACIONALES",
-        club: club.toLowerCase(),
-        desempeno: (
+        estudianteNombre: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+        numeroControl: alumno.numeroControl || 'SIN CONTROL',
+        carrera: alumno.carrera || (this.carreras && this.carreras[0] ? this.carreras[0].nombre : 'SIN CARRERA'),
+        club: (alumno.club || clubNombre || '').toLowerCase(),
+        desempeno: desempeno || (
           alumno.desempeno ||
           (alumno.faltas <= 1
-            ? "EXCELENTE"
+            ? 'EXCELENTE'
             : alumno.faltas === 2
-              ? "BUENO"
-              : "REGULAR")
+              ? 'BUENO'
+              : 'REGULAR')
         ).toString(),
-        periodo: alumno.periodo || this.periodoActual,
-        tipoActividad: this.tipoActividad(club),
+        valorNumerico: valorNumerico,
+        mesInicio: periodo.mesInicio,
+        mesFin: periodo.mesFin,
+        anioPeriodo: periodo.anioPeriodo,
       };
-      this.previewData = { ...data };
+      
+      this.previewData = {
+        tipoActividad: this.tipoActividad(data.club),
+        ...data,
+      };
     },
     descargarConstancia(alumno) {
       this.imprimirConstancia(alumno);
     },
     generarPDF() {
-      const nodo = document.getElementById("constancia");
-      if (!nodo || !this.previewData) return;
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const nodo = document.getElementById("constancia");
+          if (!nodo || !this.previewData) return;
 
-      const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
-      const opt = {
-        margin: [15, 15, 15, 15],
-        filename: `Constancia_${nombre}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
-      };
+          const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
+          const opt = {
+            margin: [15, 15, 15, 15],
+            filename: `Constancia_${nombre}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { 
+              scale: 2,
+              allowTaint: true,
+              useCORS: true,
+              logging: false,
+              windowHeight: nodo.scrollHeight
+            },
+            jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
+          };
 
-      // Cargar html2pdf desde CDN
-      if (typeof html2pdf === "undefined") {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-        document.head.appendChild(script);
-        script.onload = () => {
-          html2pdf().set(opt).from(nodo).save();
-        };
-      } else {
-        html2pdf().set(opt).from(nodo).save();
-      }
+          // Cargar html2pdf desde CDN
+          if (typeof html2pdf === "undefined") {
+            const script = document.createElement("script");
+            script.src =
+              "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            document.head.appendChild(script);
+            script.onload = () => {
+              setTimeout(() => {
+                html2pdf().set(opt).from(nodo).save();
+              }, 200);
+            };
+          } else {
+            setTimeout(() => {
+              html2pdf().set(opt).from(nodo).save();
+            }, 200);
+          }
+        }, 300);
+      });
     },
     descargarTodas() {
       console.warn('Descargar todas (PDF) no implementado');
@@ -704,7 +759,7 @@ export default {
 }
 
 .espacios {
-  height: 20px;
+  height: 15px;
 }
 
 .espacios-mediano {
@@ -791,7 +846,6 @@ export default {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  border-top: 1px solid #000;
   padding-top: 5px;
 }
 

@@ -145,7 +145,7 @@
               </td>
 
               <!-- Título -->
-              <td style="vertical-align: middle">
+              <td style="border: none; vertical-align: middle">
                 Constancia de cumplimiento de actividad Cultural y/o Deportiva
               </td>
 
@@ -187,7 +187,7 @@
 
             <tr>
               <!-- Norma -->
-              <td style="border-left: 1px solid #000; border-top: none; border-bottom: none; border-right: none; vertical-align: middle">
+              <td style="border: none; vertical-align: middle">
                 Referencia a la Norma ISO 9001:2015&nbsp;&nbsp;&nbsp;8.1
               </td>
             </tr>
@@ -225,10 +225,9 @@
               <strong>{{ toUpper(previewData.club) }}</strong> con el nivel de
               desempeño <strong>{{ toUpper(previewData.desempeno) }}</strong> y
               un valor numérico de
-              <strong>{{ desempenoValor(previewData.desempeno) }}</strong>
+              <strong>{{ previewData.valorNumerico || desempenoValor(previewData.desempeno) }}</strong>
               durante el periodo escolar
-              <strong>{{ toUpper(previewData.periodo) }}</strong
-              >, con un valor curricular de 1 crédito.
+              <strong>{{ toUpper(previewData.mesInicio) }} - {{ toUpper(previewData.mesFin) }} {{ previewData.anioPeriodo }}</strong>, con un valor curricular de 1 crédito.
             </p>
 
             <div class="espacios"></div>
@@ -327,33 +326,45 @@
         <div class="campos-editar">
           <div class="campo">
             <label>Período:</label>
-            <input
-              v-model="previewData.periodo"
-              type="text"
-              class="form-control form-control-sm"
-            />
-          </div>
-          <div class="campo">
-            <label>Desempeño:</label>
-            <select
-              v-model="previewData.desempeno"
-              class="form-select form-select-sm"
-            >
-              <option value="EXCELENTE">EXCELENTE</option>
-              <option value="BUENO">BUENO</option>
-              <option value="REGULAR">REGULAR</option>
-              <option value="INSUFICIENTE">INSUFICIENTE</option>
-            </select>
-          </div>
-          <div class="campo">
-            <label>Tipo de club:</label>
-            <select
-              v-model="previewData.tipoActividad"
-              class="form-select form-select-sm"
-            >
-              <option value="CULTURAL">CULTURAL</option>
-              <option value="DEPORTIVA">DEPORTIVA</option>
-            </select>
+            <div class="d-flex gap-2">
+              <select v-model="previewData.mesInicio" class="form-select form-select-sm">
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre">Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+              </select>
+              <span class="align-self-center">-</span>
+              <select v-model="previewData.mesFin" class="form-select form-select-sm">
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre">Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+              </select>
+              <input
+                v-model="previewData.anioPeriodo"
+                type="number"
+                min="2020"
+                max="2030"
+                class="form-control form-control-sm"
+                style="width: 100px"
+              />
+            </div>
           </div>
         </div>
         <div class="botones-acciones">
@@ -373,11 +384,11 @@
 </template>
 
 <script>
-import { getAsistenciasPorClub } from "../services/api";
+import { getAsistenciasPorClub, getEvaluacion } from "../services/api";
 
 export default {
   name: "Constancias",
-  props: ["clubs", "alumnos", "fechas", "usuarios"],
+  props: ["clubs", "alumnos", "fechas", "usuarios", "carreras"],
   data() {
     return {
       previewData: null,
@@ -592,16 +603,18 @@ export default {
       });
     },
     desempenoValor(desempeno) {
-      const mapa = { EXCELENTE: 4, BUENO: 3, REGULAR: 2, DEFICIENTE: 1 };
+      const mapa = { EXCELENTE: 4, NOTABLE: 4, BUENO: 3, REGULAR: 2, SUFICIENTE: 2, DEFICIENTE: 1, INSUFICIENTE: 1 };
       return mapa[(desempeno || "").toUpperCase()] || 0;
     },
     getPeriodoActual() {
       const f = new Date();
       const mes = f.getMonth();
       const anio = f.getFullYear();
-      return mes >= 0 && mes <= 5
-        ? `Enero-Junio ${anio}`
-        : `Agosto-Diciembre ${anio}`;
+      if (mes >= 0 && mes <= 5) {
+        return { mesInicio: 'Enero', mesFin: 'Junio', anioPeriodo: anio };
+      } else {
+        return { mesInicio: 'Agosto', mesFin: 'Diciembre', anioPeriodo: anio };
+      }
     },
     isCulturalName(nombre) {
       const n = (nombre || "").toString().trim().toLowerCase();
@@ -622,13 +635,16 @@ export default {
       return Number.isFinite(faltas) ? faltas <= 2 : false;
     },
     openConstanciaPreview(club) {
+      const periodo = this.getPeriodoActual();
       this.previewData = {
         estudianteNombre: "NOMBRE DEL ESTUDIANTE",
         numeroControl: "00000000",
-        carrera: "INGENIERÍA EN SISTEMAS COMPUTACIONALES",
+        carrera: (this.carreras && this.carreras[0] ? this.carreras[0].nombre : "CARRERA").toUpperCase(),
         club: (club?.nombre || "club").toLowerCase(),
         desempeno: "EXCELENTE",
-        periodo: this.periodoActual,
+        mesInicio: periodo.mesInicio,
+        mesFin: periodo.mesFin,
+        anioPeriodo: periodo.anioPeriodo,
         tipoActividad: this.tipoActividad(club?.nombre),
       };
     },
@@ -638,22 +654,55 @@ export default {
         ...data,
       };
     },
-    descargarConstancia(alumno, clubNombre, periodoActual) {
+    async descargarConstancia(alumno, clubNombre, periodoActual) {
       // Construir datos de la constancia
-      const data = {
-        estudianteNombre: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
-        numeroControl: alumno.numeroControl || 'SIN CONTROL',
-        carrera: alumno.carrera || 'INGENIERÍA EN SISTEMAS COMPUTACIONALES',
-        club: (alumno.club || clubNombre || '').toLowerCase(),
-        desempeno: (
+      const periodo = this.getPeriodoActual();
+      let desempeno = '';
+      let valorNumerico = null;
+
+      try {
+        const nombreFull = `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim();
+        const evalData = await getEvaluacion({ 
+          nombre_estudiante: nombreFull, 
+          nombre_club: (alumno.club || clubNombre || '') 
+        });
+
+        if (evalData) {
+          // Mapear nivel (1-4) a texto
+          const nivel = parseInt(evalData.nivel_desempeno);
+          if (nivel === 4) desempeno = 'NOTABLE'; // O EXCELENTE
+          else if (nivel === 3) desempeno = 'BUENO';
+          else if (nivel === 2) desempeno = 'SUFICIENTE';
+          else desempeno = 'INSUFICIENTE';
+          
+          valorNumerico = parseInt(evalData.valor_numerico);
+        }
+      } catch (e) {
+        console.error('Error obteniendo evaluación:', e);
+      }
+
+      if (!desempeno) {
+        // Fallback: calcular por faltas
+        desempeno = (
           alumno.desempeno ||
           (alumno.faltas <= 1
             ? 'EXCELENTE'
             : alumno.faltas === 2
               ? 'BUENO'
               : 'REGULAR')
-        ).toString(),
-        periodo: alumno.periodo || periodoActual,
+        ).toString();
+      }
+
+      const data = {
+        estudianteNombre: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+        numeroControl: alumno.numeroControl || 'SIN CONTROL',
+        carrera: alumno.carrera || (this.carreras && this.carreras[0] ? this.carreras[0].nombre : 'SIN CARRERA'),
+        club: (alumno.club || clubNombre || '').toLowerCase(),
+        desempeno: desempeno,
+        valorNumerico: valorNumerico, // Si es null, el template usará el calculado
+        mesInicio: periodo.mesInicio,
+        mesFin: periodo.mesFin,
+        anioPeriodo: periodo.anioPeriodo,
       };
       
       this.previewData = {
@@ -974,7 +1023,6 @@ export default {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  border: none;
   padding-top: 5px;
 }
 
