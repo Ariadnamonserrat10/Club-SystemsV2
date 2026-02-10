@@ -54,6 +54,9 @@
       </table>
 
       <div class="text-end mt-3">
+        <button class="btn btn-outline-secondary me-2" @click="descargarEvaluacionClub">
+          Descargar evaluación del club
+        </button>
         <button class="btn btn-success" @click="descargarTodas">
           Descargar todas (PDF)
         </button>
@@ -593,6 +596,55 @@ export default {
     },
     descargarTodas() {
       console.warn('Descargar todas (PDF) no implementado');
+    },
+    async descargarEvaluacionClub() {
+      if (!this.clubSeleccionado) {
+        return alert('Seleccione un club primero');
+      }
+
+      try {
+        // Obtener lista de nombres evaluados para el club
+        const nombres = await getEvaluacion({ type: 'list', nombre_club: this.clubSeleccionado });
+        const listaNombres = Array.isArray(nombres) ? nombres : [];
+
+        if (!listaNombres.length) {
+          return alert('No hay evaluaciones registradas para este club');
+        }
+
+        // Obtener evaluación completa por cada nombre
+        const promesas = listaNombres.map(n => getEvaluacion({ nombre_estudiante: n, nombre_club: this.clubSeleccionado }));
+        const resultados = await Promise.all(promesas);
+
+        // Construir CSV
+        const headers = [
+          'nombre_estudiante','nombre_club','periodo_realizacion',
+          'criterio_1','criterio_2','criterio_3','criterio_4','criterio_5','criterio_6','criterio_7',
+          'observaciones','valor_numerico','nivel_desempeno','fecha_registro'
+        ];
+
+        const rows = resultados.map(r => {
+          const obj = r || {};
+          return headers.map(h => {
+            const v = obj[h] == null ? '' : String(obj[h]).replace(/"/g, '""');
+            return `"${v}"`;
+          }).join(',');
+        });
+
+        const csv = [headers.join(','), ...rows].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Evaluacion_${this.clubSeleccionado.replace(/\s+/g,'_')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Error descargando evaluaciones:', e);
+        alert('Ocurrió un error al generar la descarga. Revisa la consola.');
+      }
     },
     printStyles() {
       return `

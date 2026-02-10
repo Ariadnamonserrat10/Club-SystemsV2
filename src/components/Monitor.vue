@@ -87,13 +87,14 @@
               </span>
             </td>
             <td class="text-center">
-               <button 
+              <button
+                v-if="!isEvaluated(alumno)"
                 class="btn btn-sm btn-outline-primary"
-                :disabled="isEvaluated(alumno)"
                 @click="openEvalModal(alumno)"
               >
-                {{ isEvaluated(alumno) ? 'Evaluado' : 'Evaluar' }}
+                Evaluar
               </button>
+              <span v-else class="badge bg-secondary">Evaluado</span>
             </td>
           </tr>
         </tbody>
@@ -389,9 +390,9 @@ export default {
         
         if (this.alumnosData.length > 0) {
           // Usar el club de los alumnos cargados para asegurar coincidencia
-          const clubName = this.alumnosData[0].club; 
+          const clubName = this.usuarioActual.club_nombre || this.alumnosData[0].club || '';
           if (clubName) {
-             this.loadEvaluatedStudents(clubName);
+            this.loadEvaluatedStudents(clubName);
           }
         }
 
@@ -426,12 +427,24 @@ export default {
     isEvaluated(alumno) {
       // Construir nombre completo tal como se guarda
       const nombreFull = `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim();
-      const normalizedFull = nombreFull.toLowerCase().replace(/\s+/g, ' ');
 
-      // Check against evaluados list (case insensitive)
+      function normalize(s) {
+        if (!s) return '';
+        // quitar acentos, pasar a minúsculas, colapsar espacios
+        const from = s.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+        return from.toLowerCase().replace(/\s+/g, ' ').trim();
+      }
+
+      const target = normalize(nombreFull);
+      const targetTokens = target.split(' ').filter(Boolean);
+
+      // Check against evaluados list using token inclusion to be más tolerante con diferencias
       return this.evaluados.some(e => {
-          const norm = (e || '').toLowerCase().replace(/\s+/g, ' ');
-          return norm === normalizedFull;
+        const norm = normalize(e || '');
+        // if exact match, accept
+        if (norm === target) return true;
+        // otherwise ensure all target tokens appear in the stored name
+        return targetTokens.every(t => norm.includes(t));
       });
     },
     mostrarMensaje(texto, tipo) {
@@ -612,7 +625,29 @@ export default {
       }
       
       try {
-        const res = await saveEvaluacion(this.evalForm);
+        // Sanear y validar valores numéricos antes de enviar
+        const payload = Object.assign({}, this.evalForm);
+        // Asegurar que criterios sean enteros entre 1 y 5
+        for (let i = 1; i <= 7; i++) {
+          const key = 'criterio_' + i;
+          payload[key] = parseInt(payload[key], 10) || 0;
+          if (payload[key] < 1 || payload[key] > 5) {
+            return this.mostrarMensaje('Cada criterio debe ser un valor entre 1 y 5.', 'alert-warning');
+          }
+        }
+        // Valores numéricos generales
+        payload.valor_numerico = parseInt(payload.valor_numerico, 10);
+        payload.nivel_desempeno = parseInt(payload.nivel_desempeno, 10);
+        if (isNaN(payload.valor_numerico) || payload.valor_numerico < 1 || payload.valor_numerico > 5) {
+          return this.mostrarMensaje('El valor numérico debe estar entre 1 y 5.', 'alert-warning');
+        }
+        if (isNaN(payload.nivel_desempeno) || payload.nivel_desempeno < 1 || payload.nivel_desempeno > 5) {
+          return this.mostrarMensaje('El nivel de desempeño debe estar entre 1 y 5.', 'alert-warning');
+        }
+        // Asegurar observaciones no sea null
+        payload.observaciones = payload.observaciones || '';
+
+        const res = await saveEvaluacion(payload);
         if (res.status === 'success') {
           this.mostrarMensaje('Evaluación guardada exitosamente', 'alert-success');
           this.showEvalModal = false;
