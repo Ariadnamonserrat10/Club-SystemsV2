@@ -63,6 +63,7 @@
             <th>Nombre</th>
             <th v-for="fecha in fechasData" :key="fecha">{{ fecha }}</th>
             <th>Acreditado</th>
+            <th>Evaluación</th>
           </tr>
         </thead>
         <tbody>
@@ -81,12 +82,18 @@
               />
             </td>
             <td class="text-center">
-              <span
-                class="badge"
-                :class="alumno.faltas < 3 ? 'bg-success' : 'bg-danger'"
-              >
+              <span class="badge" :class="alumno.faltas < 3 ? 'bg-success' : 'bg-danger'">
                 {{ alumno.faltas < 3 ? 'Acreditado' : 'No acreditado' }}
               </span>
+            </td>
+            <td class="text-center">
+               <button 
+                class="btn btn-sm btn-outline-primary"
+                :disabled="isEvaluated(alumno)"
+                @click="openEvalModal(alumno)"
+              >
+                {{ isEvaluated(alumno) ? 'Evaluado' : 'Evaluar' }}
+              </button>
             </td>
           </tr>
         </tbody>
@@ -99,12 +106,126 @@
         </button>
       </div>
     </div>
+
+    <!-- MODAL EVALUACION -->
+    <div v-if="showEvalModal" class="modal-backdrop fade show"></div>
+    <div v-if="showEvalModal" class="modal d-block" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">Evaluación de Desempeño</h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeEvalModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3 p-2 bg-light rounded border">
+              <div class="row">
+                <div class="col-md-6"><strong>Estudiante:</strong> {{ evalForm.nombre_estudiante }}</div>
+                <div class="col-md-6"><strong>Club:</strong> {{ evalForm.nombre_club }}</div>
+                <div class="col-12 mt-2">
+                  <label class="form-label"><strong>Periodo de realización:</strong></label>
+                  <input type="date" v-model="evalForm.periodo_realizacion" class="form-control" />
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="card bg-light mb-2">
+                <div class="card-body py-2">
+                  <h6 class="mb-1">Guía de Valores</h6>
+                  <ul class="list-unstyled small mb-0 d-flex justify-content-between flex-wrap">
+                    <li class="me-2"><strong>1:</strong> Insuficiente</li>
+                    <li class="me-2"><strong>2:</strong> Suficiente</li>
+                    <li class="me-2"><strong>3:</strong> Bueno</li>
+                    <li class="me-2"><strong>4:</strong> Notable</li>
+                    <li><strong>5:</strong> Excelente</li>
+                  </ul>
+                </div>
+              </div>
+
+              <h6>Criterios a evaluar</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="table-light text-center">
+                    <tr>
+                      <th style="width: 5%">No.</th>
+                      <th style="width: 55%">Criterio</th>
+                      <th style="width: 8%">1</th>
+                      <th style="width: 8%">2</th>
+                      <th style="width: 8%">3</th>
+                      <th style="width: 8%">4</th>
+                      <th style="width: 8%">5</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(criterio, i) in criteriosList" :key="i">
+                      <td class="text-center">{{ i + 1 }}</td>
+                      <td>{{ criterio }}</td>
+                      <td v-for="val in 5" :key="val" class="text-center">
+                        <input 
+                          type="radio" 
+                          :name="'criterio_' + (i+1)" 
+                          :value="val" 
+                          v-model="evalForm['criterio_' + (i+1)]"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"><strong>Observaciones:</strong></label>
+              <textarea v-model="evalForm.observaciones" class="form-control" rows="4" placeholder="Escriba sus observaciones aquí..."></textarea>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label"><strong>Valor numérico de la actividad Cultural y/o Deportiva:</strong></label>
+                <select v-model.number="evalForm.valor_numerico" class="form-select">
+                  <option disabled value="">Seleccione</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label"><strong>Nivel de desempeño alcanzado de la actividad Cultural y/o Deportiva:</strong></label>
+                 <select v-model.number="evalForm.nivel_desempeno" class="form-select">
+                  <option disabled value="">Seleccione</option>
+                  <option value="1">1 (Insuficiente)</option>
+                  <option value="2">2 (Suficiente)</option>
+                  <option value="3">3 (Bueno)</option>
+                  <option value="4">4 (Notable)</option>
+                  <option value="5">5 (Excelente)</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeEvalModal">Cancelar</button>
+            <button type="button" class="btn btn-primary" @click="submitEvaluacion">Guardar Evaluación</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-import { getAsistenciasPorClub, crearFechaAsistencias, actualizarAsistencia, getAlumnos } from "../services/api";
+import { 
+  getAsistenciasPorClub, 
+  crearFechaAsistencias, 
+  actualizarAsistencia, 
+  getAlumnos, 
+  registrarAuditoria, 
+  saveEvaluacion,
+  getEvaluatedStudents // Importar función para obtener evaluaciones
+} from "../services/api";
 
 export default {
   name: "Monitor",
@@ -128,6 +249,34 @@ export default {
       // listas manejadas desde backend
       alumnosData: [],
       fechasData: [],
+      // Evaluacion
+      showEvalModal: false,
+      currentStudent: null,
+      evaluados: [], // Lista de nombres de estudiantes ya evaluados
+      criteriosList: [
+        "Cumple en tiempo y forma con las actividades encomendadas alcanzando los objetivos.",
+        "Trabaja en equipo y se adapta a nuevas situaciones.",
+        "Muestra liderazgo en las actividades encomendadas.",
+        "Organiza su tiempo y trabaja de manera proactiva.",
+        "Interpreta la realidad y se sensibiliza aportando soluciones a la problemática con la actividad Cultural y/o Deportiva.",
+        "Realiza sugerencias innovadoras para beneficio o mejora del programa en el que participa.",
+        "Tiene iniciativa para ayudar en las actividades encomendadas y muestra espíritu de servicio."
+      ],
+      evalForm: {
+        nombre_estudiante: '',
+        nombre_club: '',
+        periodo_realizacion: '',
+        criterio_1: null,
+        criterio_2: null,
+        criterio_3: null,
+        criterio_4: null,
+        criterio_5: null,
+        criterio_6: null,
+        criterio_7: null,
+        observaciones: '',
+        valor_numerico: null,
+        nivel_desempeno: null
+      }
     };
   },
   computed: {
@@ -238,6 +387,14 @@ export default {
         // Forzar actualización
         this.$forceUpdate();
         
+        if (this.alumnosData.length > 0) {
+          // Usar el club de los alumnos cargados para asegurar coincidencia
+          const clubName = this.alumnosData[0].club; 
+          if (clubName) {
+             this.loadEvaluatedStudents(clubName);
+          }
+        }
+
       } catch (e) {
         console.error('Error cargando asistencias:', e);
         this.mostrarMensaje('No se pudieron cargar asistencias', 'alert-danger');
@@ -257,6 +414,26 @@ export default {
       }
     },
 
+    async loadEvaluatedStudents(clubName) {
+      try {
+        const names = await getEvaluatedStudents(clubName);
+        this.evaluados = Array.isArray(names) ? names : [];
+      } catch (e) {
+        console.error('Error loading evaluated students:', e);
+        this.evaluados = [];
+      }
+    },
+    isEvaluated(alumno) {
+      // Construir nombre completo tal como se guarda
+      const nombreFull = `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim();
+      const normalizedFull = nombreFull.toLowerCase().replace(/\s+/g, ' ');
+
+      // Check against evaluados list (case insensitive)
+      return this.evaluados.some(e => {
+          const norm = (e || '').toLowerCase().replace(/\s+/g, ' ');
+          return norm === normalizedFull;
+      });
+    },
     mostrarMensaje(texto, tipo) {
       this.mensaje.texto = texto;
       this.mensaje.tipo = tipo;
@@ -347,6 +524,20 @@ export default {
         await Promise.all(promesas);
         console.log('Todos los cambios guardados en BD');
         this.mostrarMensaje("Cambios guardados correctamente.", "alert-success");
+        
+        // Registrar en auditoría
+        try {
+          const usuarioId = sessionStorage.getItem('usuarioId');
+          if (usuarioId) {
+            await registrarAuditoria({
+              id_usuario: parseInt(usuarioId),
+              accion: 'Asistencia',
+              descripcion: `Registró asistencias para el club ${this.usuarioActual.club_nombre || 'N/A'} - ${this.fechasData.length} fechas`
+            });
+          }
+        } catch (e) {
+          console.error('Error registrando auditoría:', e);
+        }
       } catch (e) {
         console.error('Error guardando cambios:', e);
         this.mostrarMensaje("Error al guardar cambios.", "alert-danger");
@@ -392,6 +583,62 @@ export default {
         setTimeout(() => (this.mensaje.texto = ""), 2500);
       }
     },
+    openEvalModal(alumno) {
+      this.currentStudent = alumno;
+      const clubName = alumno.club || (this.alumnosData && this.alumnosData[0] ? this.alumnosData[0].club : '') || this.usuarioActual.club_nombre || 'Sin Club';
+      
+      this.evalForm = {
+        nombre_estudiante: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(),
+        nombre_club: clubName,
+        periodo_realizacion: new Date().toISOString().split('T')[0],
+        criterio_1: null, criterio_2: null, criterio_3: null, criterio_4: null, criterio_5: null, criterio_6: null, criterio_7: null,
+        observaciones: '',
+        valor_numerico: null,
+        nivel_desempeno: null
+      };
+      this.showEvalModal = true;
+    },
+    closeEvalModal() {
+      this.showEvalModal = false;
+    },
+    async submitEvaluacion() {
+      // Validaciones basicas
+      const f = this.evalForm;
+      if (!f.criterio_1 || !f.criterio_2 || !f.criterio_3 || !f.criterio_4 || !f.criterio_5 || !f.criterio_6 || !f.criterio_7) {
+        return alert('Por favor califique todos los criterios.');
+      }
+      if (!f.valor_numerico || !f.nivel_desempeno) {
+        return alert('Por favor asigne valor numérico y nivel de desempeño.');
+      }
+      
+      try {
+        const res = await saveEvaluacion(this.evalForm);
+        if (res.status === 'success') {
+          this.mostrarMensaje('Evaluación guardada exitosamente', 'alert-success');
+          this.showEvalModal = false;
+        
+          // Log auditoria
+          const usuarioId = sessionStorage.getItem('usuarioId');
+          if (usuarioId) {
+            await registrarAuditoria({
+              id_usuario: parseInt(usuarioId),
+              accion: 'Insertar', // O 'Evaluacion' si existiera, pero 'Insertar' está permitido
+              descripcion: `Se evaluó al estudiante ${f.nombre_estudiante}`
+            });
+          }
+          
+          // Actualizar lista local de evaluados para deshabilitar botón sin recargar
+          if (!this.evaluados.includes(f.nombre_estudiante)) {
+             this.evaluados.push(f.nombre_estudiante);
+          }
+        } else {
+            throw new Error(res.message || 'Error desconocido del servidor');
+        }
+      } catch (e) {
+        console.error(e);
+        this.mostrarMensaje(e.message || 'Error al guardar evaluación', 'alert-danger');
+      }
+    }
   },
   async mounted() {
     await this.cargarUsuarioActual();
@@ -418,4 +665,6 @@ img {
 .fade-leave-to {
   opacity: 0;
 }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1040; }
+.modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index: 1050; }
 </style>

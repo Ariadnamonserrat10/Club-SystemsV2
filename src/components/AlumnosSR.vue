@@ -64,13 +64,7 @@
               <div class="col-md-4 mt-2">
                 <select v-model="form.carrera" class="form-select">
                   <option disabled value="">Selecciona carrera</option>
-                  <option>ISC</option>
-                  <option>Ingeniería Industrial</option>
-                  <option>ADMON</option>
-                  <option>Contaduría</option>
-                  <option>Arquitectura</option>
-                  <option>Derecho</option>
-                  <option>Diseño Gráfico</option>
+                  <option v-for="c in carreras" :key="c.id || c.nombre" :value="c.nombre">{{ c.nombre }}</option>
                 </select>
               </div>
 
@@ -106,7 +100,7 @@ import { createAlumno } from '../services/api';
 */
 export default {
   name: 'AlumnosSR',
-  props: ['clubs'],
+  props: ['clubs', 'carreras'],
   data() {
     return {
       unregistered: [],
@@ -170,13 +164,15 @@ export default {
         // map clubName to id if available
         const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.nombre === clubName) : null;
         const id_club = clubObj && clubObj.id ? clubObj.id : null;
+        const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === alumno.carrera) : null;
+        const carrera_id = carObj && carObj.id ? carObj.id : null;
         const payload = {
           nombre: alumno.nombre,
           apellidoP: alumno.apellidoP,
           apellidoM: alumno.apellidoM,
           numeroControl: alumno.control,
           telefono: alumno.telefono || null,
-          carrera_id: null,
+          carrera_id,
           semestre_id: null,
           id_club,
         };

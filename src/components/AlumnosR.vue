@@ -155,15 +155,7 @@ export default {
       loading: false,
       toastMsg: '',
       errorMsg: '',
-      carreraAlias: {
-        'Ingeniería Civil': 'ICIV',
-        'Ingeniería Industrial': 'IIND',
-        'Ingeniería en Sistemas Computacionales': 'ISC',
-        'Ingeniería en Gestión Empresarial': 'ING',
-        'Licenciatura en Administración': 'ADMON',
-        'Licenciatura en Arquitectura': 'ARQU',
-        'Ingeniería en Mecatrónica': 'IMCT',
-      },
+      errorMsg: '',
     };
   },
   methods: {
@@ -181,7 +173,9 @@ export default {
     showError(msg) { this.errorMsg = msg; setTimeout(() => this.errorMsg = '', 3500); },
 
     displayCarrera(nombre) {
-      return this.carreraAlias[nombre] || nombre || '';
+      if (!nombre) return '';
+      const found = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === nombre) : null;
+      return found ? (found.abreviatura || found.nombre) : nombre;
     },
 
     async saveRegistered() {
@@ -296,8 +290,8 @@ export default {
 .table {
   width: 100%; border-collapse: collapse; background: #fff; table-layout: fixed;
 }
-.table th, .table td { border: 1px solid #ddd; padding: 8px; }
-.table thead th { background: #e3f2fd; text-align: left; }
+.table th, .table td { border: 1px solid #ddd; padding: 8px; vertical-align: middle; }
+.table thead th { background: #e3f2fd; text-align: center; }
 
 .btn { padding: 6px 12px; border-radius: 6px; border: 1px solid #999; background: #f5f5f5; cursor: pointer; }
 .btn-primary { background: #1976d2; color: #fff; border-color: #1976d2; }
@@ -323,10 +317,10 @@ export default {
 .toast-local.success { background: #43a047; }
 .toast-local.error { background: #e53935; }
 .actions { display: inline-flex; gap: 8px; align-items: center; }
-.col-carrera { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-carrera { text-align: center; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .col-sem { width: 80px; text-align: center; }
 .col-control { width: 130px; }
 .col-tel { width: 140px; }
-.col-club { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.col-acciones { width: 160px; }
+.col-club { text-align: center; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-acciones { width: 180px; text-align: center; }
 </style>

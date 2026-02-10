@@ -46,13 +46,14 @@ try {
 
     if (isset($_GET['club_id']) && $_GET['club_id'] !== '') {
       $clubId = (int)$_GET['club_id'];
-      $stmt = $conexion->prepare('SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos WHERE id_club = ? ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC');
+      // Join con clubs para obtener nombre
+      $stmt = $conexion->prepare('SELECT a.id, a.nombre, a.apellidoP, a.apellidoM, a.numeroControl, a.telefono, a.carrera_id, a.semestre_id, a.id_club, a.fecha_registro, c.nombre as club FROM alumnos a LEFT JOIN clubs c ON a.id_club = c.id WHERE a.id_club = ? ORDER BY a.apellidoP ASC, a.apellidoM ASC, a.nombre ASC');
       $stmt->bind_param('i', $clubId);
       $stmt->execute();
       $res = $stmt->get_result();
       while ($row = $res->fetch_assoc()) { $rows[] = $row; }
     } else {
-      $sql = 'SELECT id, nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club, fecha_registro FROM alumnos ORDER BY apellidoP ASC, apellidoM ASC, nombre ASC';
+      $sql = 'SELECT a.id, a.nombre, a.apellidoP, a.apellidoM, a.numeroControl, a.telefono, a.carrera_id, a.semestre_id, a.id_club, a.fecha_registro, c.nombre as club FROM alumnos a LEFT JOIN clubs c ON a.id_club = c.id ORDER BY a.apellidoP ASC, a.apellidoM ASC, a.nombre ASC';
       if ($res = $conexion->query($sql)) {
         while ($row = $res->fetch_assoc()) { $rows[] = $row; }
       }
