@@ -90,6 +90,7 @@
               >Auditoría</a
             >
           </li>
+
         </ul>
       </div>
 
@@ -155,7 +156,7 @@ import Constancias from "../components/Constancias.vue";
 import Auditoria from "../components/Auditoria.vue";
 import Listas from "../components/Listas.vue";
 import CarrerasR from "../components/CarrerasR.vue";
-import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, registrarAuditoria, getCarreras } from "../services/api";
+import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, registrarAuditoria, getCarreras, getUsuarios } from "../services/api";
 import axios from "axios";
 
 export default {
@@ -200,20 +201,7 @@ export default {
       ],
 
       // usuarios para Gestion (ejemplo)
-      usuarios: [
-        {
-          id: 1,
-          nombre: "admin",
-          tipo: "oficina",
-          correo: "admin@ejemplo.com",
-        },
-        {
-          id: 2,
-          nombre: "monitor1",
-          tipo: "monitor",
-          correo: "mon1@ejemplo.com",
-        },
-      ],
+      usuarios: [],
 
       fechas: ["01/11", "08/11", "15/11"],
 
@@ -248,7 +236,7 @@ export default {
        }
 
        const response = await axios.get(
-         `http://localhost/Backend/obtenerUsuario.php?id=${usuarioId}`
+         `/api/obtenerUsuario.php?id=${usuarioId}`
        );
 
        if (response.data.status === "success") {
@@ -280,6 +268,7 @@ export default {
         this.clubs = rows.map((r) => ({
           id: Number(r.id),
           nombre: r.nombre,
+          tipo: r.tipo || 'CULTURAL',
           descripcion: r.descripcion,
           cupo: r.cupo_limite,
           ocupados: r.cupo_ocupado != null ? Number(r.cupo_ocupado) : 0,
@@ -313,6 +302,19 @@ export default {
         this.carreras = await getCarreras();
       } catch (e) {
         this.showError(e.message || 'No se pudo cargar carreras');
+      }
+    },
+
+    async loadUsuarios() {
+      try {
+        const rows = await getUsuarios();
+        this.usuarios = rows.map(u => ({
+          ...u,
+          id: Number(u.id)
+        }));
+        console.log('Usuarios cargados:', this.usuarios.length);
+      } catch (e) {
+        console.error('Error al cargar usuarios:', e);
       }
     },
 
@@ -357,6 +359,7 @@ export default {
       try {
         const payload = {
           nombre: club.nombre,
+          tipo: club.tipo || 'CULTURAL',
           descripcion: club.descripcion ?? null,
           cupo_limite: Number(club.cupo) || 0,
           id_responsable: club.id_responsable ?? null,
@@ -365,6 +368,7 @@ export default {
         const mapped = {
           id: Number(saved.id),
           nombre: saved.nombre,
+          tipo: saved.tipo || 'CULTURAL',
           descripcion: saved.descripcion,
           cupo: saved.cupo_limite,
           ocupados: 0,
@@ -390,6 +394,7 @@ export default {
         if (!current || !current.id) throw new Error("Club sin id");
         const payload = {
           nombre: club.nombre ?? current.nombre,
+          tipo: club.tipo ?? current.tipo,
           descripcion: club.descripcion ?? current.descripcion,
           cupo_limite: club.cupo !== undefined ? Number(club.cupo) : current.cupo,
           id_responsable: club.id_responsable ?? current.id_responsable,
@@ -398,6 +403,7 @@ export default {
         const mapped = {
           id: Number(saved.id),
           nombre: saved.nombre,
+          tipo: saved.tipo || 'CULTURAL',
           descripcion: saved.descripcion,
           cupo: saved.cupo_limite,
           ocupados: current.ocupados || 0,
@@ -606,7 +612,7 @@ export default {
           return norm(nombreAlumnoClub) === norm(club.nombre);
         }).length;
         const base = club && club.cupo_ocupado != null ? Number(club.cupo_ocupado) : (club.ocupados || 0);
-        const ocupados = Math.max(base, porId, porNombre);
+        const ocupados = Math.max(0, porId, porNombre);
         return { ...club, ocupados };
       });
     },
@@ -692,6 +698,7 @@ export default {
   }
   
   await this.cargarUsuarioActual();
+  await this.loadUsuarios();
   await this.loadCarreras();
   await this.loadClubs();
   await this.loadAlumnos();

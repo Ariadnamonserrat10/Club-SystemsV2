@@ -294,3 +294,55 @@ export async function getEvaluatedStudents(clubName) {
   if (data.status === 'error') throw new Error(data.message || 'Error en el servidor');
   return data.data; // array
 }
+
+// Asignación de Cargos
+const ASIGNACION_CARGOS_BASE = '/api/asignacion_cargos.php';
+const CONFIG_BASE = '/api/configuracion.php';
+const FIRMAS_BASE = '/api/obtener_firmas.php';
+
+export async function getAsignacionCargos() {
+  const res = await fetch(ASIGNACION_CARGOS_BASE, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener asignaciones de cargos');
+  return data.data || [];
+}
+
+export async function asignarCargo(cargo, idUsuario, tituloCargo = null) {
+  const payload = { cargo, id_usuario: idUsuario };
+  if (tituloCargo !== null) payload.titulo_cargo = tituloCargo;
+
+  const res = await fetch(ASIGNACION_CARGOS_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al asignar cargo');
+  return data;
+}
+
+export async function getConfig(clave) {
+  const url = clave ? `${CONFIG_BASE}?clave=${encodeURIComponent(clave)}` : CONFIG_BASE;
+  const res = await fetch(url, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener configuración');
+  return data.data;
+}
+
+export async function saveConfig(clave, valor) {
+  const res = await fetch(CONFIG_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clave, valor })
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al guardar configuración');
+  return data;
+}
+
+export async function getFirmas() {
+  const res = await fetch(FIRMAS_BASE, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener firmas');
+  return data.data || {};
+}

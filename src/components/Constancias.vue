@@ -208,7 +208,7 @@
               style="font-size: 10pt; margin: 0 0 20px 0; line-height: 1.6"
             >
             <br><br>
-              C. BLANCA ANSELMA CASTRO CASTRO<br />
+              {{ getNombreJefe('jefa_servicios') || '__________________________' }}<br />
               JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br />
               PRESENTE
             </p>
@@ -216,8 +216,7 @@
             <div class="espacios"></div>
 
             <p class="texto justificado">
-              La que suscribe Olimpia Cruz Reyes, Jefa del Departamento de
-              Actividades Extraescolares, por este medio se permite hacer de su
+              La que suscribe {{ getNombreJefe('jefe_actividades') || '__________________________' }}, Jefe del Departamento de Actividades Extraescolares, por este medio se permite hacer de su
               conocimiento que la estudiante
               <strong>{{ toUpper(previewData.estudianteNombre) }}</strong> con número de control <strong>{{ previewData.numeroControl }}</strong> de la
               carrera de <strong>{{ toUpper(previewData.carrera) }}</strong
@@ -283,9 +282,9 @@
                   "
                 >
                   <div class="linea-firma"></div>
-                  <div class="nombre-firma">FERNANDO JAIR MENDOZA JIMENEZ</div>
+                  <div class="nombre-firma">{{ getNombreJefe('jefe_promocion') || '__________________________' }}</div>
                   <div class="cargo-firma">
-                    JEFE DE LA OFICINA DE PROMOCIÓN DEPORTIVA
+                    JEFE DE LA OFICINA DE PROMOCIÓN {{ toUpper(previewData.tipoActividad || 'CULTURAL') }}
                   </div>
                 </td>
                 <td
@@ -298,9 +297,9 @@
                   "
                 >
                   <div class="linea-firma"></div>
-                  <div class="nombre-firma">OLIMPIA CRUZ REYES</div>
+                  <div class="nombre-firma">{{ getNombreJefe('jefe_actividades') || '__________________________' }}</div>
                   <div class="cargo-firma">
-                    JEFA DEL DEPTO. DE ACTIVIDADES EXTRAESCOLARES
+                    JEFE DEL DEPARTAMENTO DE ACTIVIDADES EXTRAESCOLARES
                   </div>
                 </td>
               </tr>
@@ -321,7 +320,41 @@
         </div>
       </div>
 
-      <div class="acciones-preview">
+      <div class="acciones-preview p-3" style="width: 300px; background: #f8f9fa; border-left: 1px solid #dee2e6;">
+        <h5 class="mb-3">Configuración de Firmas</h5>
+        
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Jefa de Servicios Escolares</label>
+          <input 
+            v-model="jefesSeleccionados.jefa_servicios_nombre" 
+            class="form-control form-control-sm" 
+            placeholder="Nombre de la jefa"
+            @change="guardarPreferenciaManual('jefa_servicios')"
+          />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Jefe de Actividades</label>
+          <select v-model="jefesSeleccionados.jefe_actividades" class="form-select form-select-sm" @change="guardarPreferencia('jefe_actividades')">
+            <option value="">-- Seleccionar --</option>
+            <option v-for="u in usuariosOficina" :key="u.id" :value="u.id">
+              {{ formatNombre(u) }}
+            </option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Jefe de Promoción</label>
+          <select v-model="jefesSeleccionados.jefe_promocion" class="form-select form-select-sm" @change="guardarPreferencia('jefe_promocion')">
+            <option value="">-- Seleccionar --</option>
+            <option v-for="u in usuariosOficina" :key="u.id" :value="u.id">
+              {{ formatNombre(u) }}
+            </option>
+          </select>
+        </div>
+
+        <hr>
+
         <h5 class="mb-3">Editar Constancia</h5>
         <div class="campos-editar">
           <div class="campo">
@@ -367,7 +400,7 @@
             </div>
           </div>
         </div>
-        <div class="botones-acciones">
+        <div class="botones-acciones mt-3">
           <button
             class="btn btn-secondary w-100 mb-2"
             @click="previewData = null"
@@ -384,7 +417,7 @@
 </template>
 
 <script>
-import { getAsistenciasPorClub, getEvaluacion } from "../services/api";
+import { getAsistenciasPorClub, getEvaluacion, getFirmas, asignarCargo, saveConfig } from "../services/api";
 
 export default {
   name: "Constancias",
@@ -395,9 +428,21 @@ export default {
       periodoActual: this.getPeriodoActual(),
       alumnosPorClub: {}, // Objeto que almacena alumnos por club_id
       fechasData: [], // Fechas desde BD
+      jefesSeleccionados: {
+        jefe_promocion: "",
+        jefe_actividades: "",
+        jefa_servicios: "",
+        jefa_servicios_nombre: ""
+      }
     };
   },
   computed: {
+    usuariosOficina() {
+      if (!this.usuarios) return [];
+      return this.usuarios.filter(u => 
+        u.tipo && u.tipo.toString().toUpperCase() === 'OFICINA'
+      );
+    },
     fechaHoy() {
       const ahora = new Date();
       const meses = [
@@ -626,8 +671,10 @@ export default {
       ];
       return culturales.includes(n);
     },
-    tipoActividad(nombreClub) {
-      return this.isCulturalName(nombreClub) ? "CULTURAL" : "DEPORTIVA";
+    tipoActividad(club) {
+      if (club && club.tipo) return club.tipo.toUpperCase();
+      const nombre = typeof club === 'string' ? club : (club?.nombre || "");
+      return this.isCulturalName(nombre) ? "CULTURAL" : "DEPORTIVA";
     },
     // Regla de acreditación: faltas <= 2 (ajustable)
     isAcreditado(alumno) {
@@ -645,7 +692,7 @@ export default {
         mesInicio: periodo.mesInicio,
         mesFin: periodo.mesFin,
         anioPeriodo: periodo.anioPeriodo,
-        tipoActividad: this.tipoActividad(club?.nombre),
+        tipoActividad: this.tipoActividad(club),
       };
     },
     printConstancia(data) {
@@ -705,8 +752,10 @@ export default {
         anioPeriodo: periodo.anioPeriodo,
       };
       
+      const clubActual = this.clubs.find(c => c.nombre === data.club || c.id === alumno.club_id);
+
       this.previewData = {
-        tipoActividad: this.tipoActividad(data.club),
+        tipoActividad: this.tipoActividad(clubActual || data.club),
         ...data,
       };
     },
@@ -775,6 +824,53 @@ export default {
         .firmas .cargo { font-size: 11px; }
       `;
     },
+    formatNombre(u) {
+      if (!u) return '';
+      const np = u.nombre || '';
+      const ap = u.apellidoP || '';
+      const am = u.apellidoM || '';
+      return `${np} ${ap} ${am}`.trim().toUpperCase();
+    },
+    async guardarPreferencia(cargo) {
+      const idUsuario = this.jefesSeleccionados[cargo];
+      if (idUsuario) {
+        try {
+          await asignarCargo(cargo, idUsuario);
+        } catch (e) {
+          console.error('Error al guardar cargo en BD:', e);
+        }
+      }
+    },
+    async guardarPreferenciaManual(cargo) {
+      const valor = this.jefesSeleccionados[cargo + '_nombre'];
+      try {
+        await saveConfig('firma_' + cargo, valor);
+      } catch (e) {
+        console.error('Error al guardar firma manual:', e);
+      }
+    },
+    async loadCargos() {
+      try {
+        const firmas = await getFirmas();
+        if (firmas.jefe_actividades) this.jefesSeleccionados.jefe_actividades = firmas.jefe_actividades.id;
+        if (firmas.jefe_promocion) this.jefesSeleccionados.jefe_promocion = firmas.jefe_promocion.id;
+        if (firmas.jefa_servicios) {
+          this.jefesSeleccionados.jefa_servicios_nombre = firmas.jefa_servicios.nombre;
+        }
+      } catch (e) {
+        console.error('Error al cargar cargos:', e);
+      }
+    },
+    getNombreJefe(cargo) {
+      if (cargo === 'jefa_servicios') {
+        const nom = this.jefesSeleccionados.jefa_servicios_nombre;
+        return nom ? 'C. ' + nom.toUpperCase() : '';
+      }
+      const id = this.jefesSeleccionados[cargo];
+      if (!id) return '';
+      const u = this.usuariosOficina.find(user => user.id == id);
+      return u ? this.formatNombre(u) : '';
+    },
   },
   watch: {
     clubs: {
@@ -784,7 +880,8 @@ export default {
       deep: true,
     },
   },
-  mounted() {
+  async mounted() {
+    await this.loadCargos();
     this.loadAsistenciasPorClubs();
   },
 };

@@ -52,7 +52,8 @@ echo json_encode([
     "tipo" => $usuario['tipo'],
     "foto" => $usuario['foto'],
     "club_asignado" => $usuario['club_asignado'] !== null ? (int)$usuario['club_asignado'] : null,
-    "club_nombre" => $usuario['club_nombre'] ?? null
+    "club_nombre" => $usuario['club_nombre'] ?? null,
+    "cargo" => $usuario['cargo'] ?? null
   ]
 ]);
 ?>
