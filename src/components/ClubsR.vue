@@ -10,6 +10,7 @@
         <thead class="table-primary">
           <tr>
             <th>Nombre</th>
+            <th>Tipo</th>
             <th>Descripción</th>
             <th>Cupo</th>
             <th>Ocupados</th>
@@ -20,6 +21,11 @@
           <!-- Usamos clubsConOcupados en lugar de clubs -->
           <tr v-for="(club, index) in clubsConOcupados" :key="(club.id || club.nombre) + '-' + index">
             <td>{{ club.nombre }}</td>
+            <td>
+              <span class="badge" :class="club.tipo === 'DEPORTIVO' ? 'bg-info' : 'bg-primary'">
+                {{ club.tipo }}
+              </span>
+            </td>
             <td>{{ club.descripcion }}</td>
             <td>{{ club.cupo }}</td>
             <td>{{ club.ocupados }}</td>
@@ -43,6 +49,10 @@
           </div>
           <div class="modal-body">
             <input v-model="localClub.nombre" class="form-control mb-2" placeholder="Nombre del club" />
+            <select v-model="localClub.tipo" class="form-select mb-2">
+              <option value="CULTURAL">CULTURAL</option>
+              <option value="DEPORTIVO">DEPORTIVO</option>
+            </select>
             <input v-model="localClub.descripcion" class="form-control mb-2" placeholder="Descripción" />
             <input v-model.number="localClub.cupo" type="number" min="1" class="form-control mb-2" placeholder="Cupo máximo" />
           </div>
@@ -83,7 +93,7 @@ export default {
   props: ['clubs', 'fechas', 'alumnos'],
   data() {
     return {
-      localClub: { nombre: '', descripcion: '', cupo: 0 },
+      localClub: { nombre: '', tipo: 'CULTURAL', descripcion: '', cupo: 0 },
       editingIndex: null,
       pendingDeleteIndex: null
     };
@@ -106,6 +116,7 @@ export default {
         // Normalización de campos desde la BD
         const id = c.id ?? c.ID ?? c.id_club ?? null;
         const nombre = c.nombre ?? c.Name ?? c.titulo ?? '';
+        const tipo = c.tipo || 'CULTURAL';
         const descripcion = c.descripcion ?? c.description ?? '';
         const cupo = c.cupo != null ? c.cupo : c.cupo_limite != null ? c.cupo_limite : 0;
         // Preferimos valor de BD si existe
@@ -145,20 +156,20 @@ export default {
           ocupados = Math.max(ocupadosPorId, ocupadosPorNombre);
         }
 
-        return { ...c, id, nombre, descripcion, cupo, ocupados };
+        return { ...c, id, nombre, tipo, descripcion, cupo, ocupados };
       });
     }
   },
   methods: {
     openModal() {
       this.editingIndex = null;
-      this.localClub = { nombre: '', descripcion: '', cupo: 0 };
+      this.localClub = { nombre: '', tipo: 'CULTURAL', descripcion: '', cupo: 0 };
       new bootstrap.Modal(document.getElementById('modalClubsR')).show();
     },
     startEdit(index) {
       this.editingIndex = index;
-      const c = this.clubs[index];
-      this.localClub = { nombre: c.nombre, descripcion: c.descripcion, cupo: c.cupo };
+      const c = this.clubsConOcupados[index];
+      this.localClub = { nombre: c.nombre, tipo: c.tipo, descripcion: c.descripcion, cupo: c.cupo };
       new bootstrap.Modal(document.getElementById('modalClubsR')).show();
     },
     saveClub() {
