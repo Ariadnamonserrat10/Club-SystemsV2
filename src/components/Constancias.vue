@@ -648,8 +648,8 @@ export default {
       });
     },
     desempenoValor(desempeno) {
-      const mapa = { EXCELENTE: 4, NOTABLE: 4, BUENO: 3, REGULAR: 2, SUFICIENTE: 2, DEFICIENTE: 1, INSUFICIENTE: 1 };
-      return mapa[(desempeno || "").toUpperCase()] || 0;
+      const mapa = { EXCELENTE: 5, NOTABLE: 4, BUENO: 3, REGULAR: 2, SUFICIENTE: 2, DEFICIENTE: 1, INSUFICIENTE: 1 };
+      return mapa[(desempeno || "").toUpperCase()] || 1;
     },
     getPeriodoActual() {
       const f = new Date();
@@ -715,9 +715,9 @@ export default {
         });
 
         if (evalData) {
-          // Mapear nivel (1-4) a texto
           const nivel = parseInt(evalData.nivel_desempeno);
-          if (nivel === 4) desempeno = 'NOTABLE'; // O EXCELENTE
+          if (nivel === 5) desempeno = 'EXCELENTE';
+          else if (nivel === 4) desempeno = 'NOTABLE';
           else if (nivel === 3) desempeno = 'BUENO';
           else if (nivel === 2) desempeno = 'SUFICIENTE';
           else desempeno = 'INSUFICIENTE';

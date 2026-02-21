@@ -4,192 +4,254 @@
 
     <div class="d-flex justify-content-between align-items-center my-3">
       <div>
-        <button class="btn btn-primary me-2" @click="simularImport">Importar (simulación Google Forms)</button>
-        <button class="btn btn-success" @click="openAddModal">Agregar manual</button>
+        <button class="btn btn-info me-2" @click="triggerCSV">Importar CSV (Local)</button>
+        <button class="btn btn-primary me-2" @click="fetchFromGoogleSheets">Jalar desde Google Sheets (En línea)</button>
+        <input type="file" ref="csvInput" style="display: none" accept=".csv" @change="handleCSVUpload" />
       </div>
       <div>
         <small class="text-muted">Los registros muestran 3 opciones de club propuestas.</small>
       </div>
     </div>
 
-    <div v-if="unregistered.length === 0" class="text-muted">No hay alumnos sin registrar.</div>
+    <div v-if="!unregistered || unregistered.length === 0" class="text-muted">No hay alumnos sin registrar.</div>
 
-    <table v-if="unregistered.length" class="table table-bordered table-striped align-middle">
+    <table v-if="unregistered && unregistered.length" class="table table-bordered table-striped align-middle">
       <thead class="table-primary">
         <tr>
           <th>Nombre</th>
           <th>No. Control</th>
           <th>Teléfono</th>
+          <th>Estado</th>
           <th>Opciones de club</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(u, idx) in unregistered" :key="u.control + idx">
+        <tr v-for="(u, idx) in unregistered" :key="u.id || (u.numeroControl || '') + idx">
           <td>{{ u.nombre }} {{ u.apellidoP }} {{ u.apellidoM }}</td>
-          <td>{{ u.control }}</td>
+          <td>{{ u.numeroControl }}</td>
           <td>{{ u.telefono }}</td>
           <td>
-            <div class="d-flex gap-2">
-              <button v-for="(opt, oIndex) in u.opciones" :key="oIndex" class="btn btn-outline-secondary btn-sm" disabled>{{ opt }}</button>
-            </div>
+            <span :class="['badge', u.estado === 'APROBADO' ? 'bg-success' : u.estado === 'RECHAZADO' ? 'bg-danger' : 'bg-warning']">
+              {{ u.estado || 'PENDIENTE' }}
+            </span>
           </td>
           <td>
             <div class="d-flex gap-2">
-              <button class="btn btn-success btn-sm" @click="assignToClub(idx, u.opciones[0])">Asignar 1</button>
-              <button class="btn btn-success btn-sm" @click="assignToClub(idx, u.opciones[1])">Asignar 2</button>
-              <button class="btn btn-success btn-sm" @click="assignToClub(idx, u.opciones[2])">Asignar 3</button>
-              <button class="btn btn-danger btn-sm" @click="removeUnregistered(idx)">Eliminar</button>
+              <button v-for="(opt, oIndex) in getOpciones(u)" :key="oIndex" class="btn btn-outline-secondary btn-sm" disabled>{{ opt }}</button>
+            </div>
+          </td>
+          <td>
+            <div class="d-flex gap-2" v-if="u.estado === 'PENDIENTE' || !u.estado">
+              <button v-for="(opt, oIndex) in getOpciones(u)" :key="'btn'+oIndex" 
+                class="btn btn-success btn-sm" 
+                @click="assignToClub(u, opt)">
+                Asignar {{ oIndex + 1 }}
+              </button>
+              <button class="btn btn-danger btn-sm" @click="rejectStudent(u)">Rechazar</button>
+              <button class="btn btn-sm btn-outline-danger" @click="deleteRecord(u, idx)">Eliminar</button>
             </div>
           </td>
         </tr>
       </tbody>
     </table>
-
-    <!-- Modal agregar alumno sin registrar -->
-    <div class="modal fade" id="modalAddSR" tabindex="-1">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Agregar alumno (sin registrar)</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-2">
-              <div class="col-md-4"><input v-model="form.nombre" class="form-control" placeholder="Nombre(s)" /></div>
-              <div class="col-md-4"><input v-model="form.apellidoP" class="form-control" placeholder="Apellido paterno" /></div>
-              <div class="col-md-4"><input v-model="form.apellidoM" class="form-control" placeholder="Apellido materno" /></div>
-              <div class="col-md-4 mt-2"><input v-model="form.control" maxlength="8" class="form-control" placeholder="Número de control (8 dígitos)" /></div>
-              <div class="col-md-4 mt-2"><input v-model="form.telefono" class="form-control" placeholder="Teléfono" @input="soloNumeros('telefono')" /></div>
-              <div class="col-md-4 mt-2">
-                <select v-model="form.carrera" class="form-select">
-                  <option disabled value="">Selecciona carrera</option>
-                  <option v-for="c in carreras" :key="c.id || c.nombre" :value="c.nombre">{{ c.nombre }}</option>
-                </select>
-              </div>
-
-              <!-- Opciones de clubs (3) -->
-              <div class="col-12 mt-2">
-                <label class="form-label">Opciones de club (3)</label>
-                <div class="row g-2">
-                  <div class="col-md-4"><select v-model="form.opciones[0]" class="form-select"><option disabled value="">Opción 1</option><option v-for="c in clubs" :key="c.nombre">{{ c.nombre }}</option></select></div>
-                  <div class="col-md-4"><select v-model="form.opciones[1]" class="form-select"><option disabled value="">Opción 2</option><option v-for="c in clubs" :key="c.nombre+'2'">{{ c.nombre }}</option></select></div>
-                  <div class="col-md-4"><select v-model="form.opciones[2]" class="form-select"><option disabled value="">Opción 3</option><option v-for="c in clubs" :key="c.nombre+'3'">{{ c.nombre }}</option></select></div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-primary" @click="saveUnregistered">Guardar</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { createAlumno } from '../services/api';
-/*
- AlumnosSR: maneja la lista de "sin registrar" que provendría de formularios externos.
- - Emite assign-alumno al padre cuando se asigna.
- - Emite import-unregistered si se importa una lista externa.
- - para la simulación se creará algunos registros de ejemplo.
-*/
+import { getAlumnosPendientes, saveAlumnosPendientes, updateEstatusPendiente, deleteAlumnoPendiente } from '../services/api';
+import axios from 'axios';
+
 export default {
   name: 'AlumnosSR',
   props: ['clubs', 'carreras'],
   data() {
     return {
       unregistered: [],
-
-      // formulario local para agregar manualmente
-      form: {
-        nombre: '',
-        apellidoP: '',
-        apellidoM: '',
-        control: '',
-        telefono: '',
-        carrera: '',
-        opciones: ['', '', '']
-      }
     };
   },
+  async mounted() {
+    await this.loadUnregistered();
+  },
   methods: {
-    // simula import desde Google Forms (ejemplo)
-    simularImport() {
-      const sample = [
-        { nombre: 'Pedro', apellidoP: 'Gómez', apellidoM: 'Sánchez', control: '20230001', telefono: '5512345678', carrera: 'Ingeniería en Sistemas', opciones: this.sampleOptions() },
-        { nombre: 'Lucía', apellidoP: 'Méndez', apellidoM: 'Ríos', control: '20230002', telefono: '5598765432', carrera: 'Administración', opciones: this.sampleOptions() }
-      ];
-      this.unregistered.push(...sample);
-      this.$emit('import-unregistered', this.unregistered);
-      this.$emit('log', { usuario: 'Sistema', accion: 'Insertar', tipo: 'import', descripcion: `Importados ${sample.length} registros` });
-      new bootstrap.Toast(document.getElementById('toastSuccess')).show();
-    },
-
-    sampleOptions() {
-      // toma primeros 3 clubs disponibles o repite si hay menos
-      const names = this.clubs.map(c => c.nombre);
-      const out = [];
-      for (let i=0;i<3;i++) out.push(names[i % Math.max(1,names.length)] || 'Sin club');
-      return out;
-    },
-
-    openAddModal() {
-      this.form = { nombre: '', apellidoP: '', apellidoM: '', control: '', telefono: '', carrera: '', opciones: ['', '', ''] };
-      new bootstrap.Modal(document.getElementById('modalAddSR')).show();
-    },
-
-    saveUnregistered() {
-      if (!this.form.nombre || !/^\d{8}$/.test(this.form.control) || !/^\d+$/.test(this.form.telefono) || !this.form.opciones[0]) {
-        return this.$root.showError ? this.$root.showError('Verifique los campos (control 8 dígitos, teléfono numérico, al menos 1 opción de club)') : null;
+    safeNotify(type, msg) {
+      if (type === 'error') {
+        if (this.$parent && typeof this.$parent.showError === 'function') this.$parent.showError(msg);
+        else if (this.$root && typeof this.$root.showError === 'function') this.$root.showError(msg);
+        else console.error(msg);
+      } else {
+        if (this.$parent && typeof this.$parent.showToast === 'function') this.$parent.showToast(msg);
+        else if (this.$root && typeof this.$root.showToast === 'function') this.$root.showToast(msg);
+        else console.log(msg);
       }
-      this.unregistered.push({ ...this.form });
-      this.$emit('log', { usuario: 'Usuario Oficina', accion: 'Insertar', tipo: 'alumno_sin_registrar', descripcion: `Se agregó ${this.form.nombre}` });
-      bootstrap.Modal.getInstance(document.getElementById('modalAddSR')).hide();
-      new bootstrap.Toast(document.getElementById('toastSuccess')).show();
     },
-
-    soloNumeros(campo) {
-      this.form[campo] = this.form[campo].replace(/\D/g, '');
-    },
-
-    async assignToClub(index, clubName) {
-      const alumno = this.unregistered[index];
-      if (!clubName) return this.$root.showError('Club inválido');
+    async loadUnregistered() {
       try {
-        // map clubName to id if available
-        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.nombre === clubName) : null;
-        const id_club = clubObj && clubObj.id ? clubObj.id : null;
-        const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === alumno.carrera) : null;
-        const carrera_id = carObj && carObj.id ? carObj.id : null;
-        const payload = {
-          nombre: alumno.nombre,
-          apellidoP: alumno.apellidoP,
-          apellidoM: alumno.apellidoM,
-          numeroControl: alumno.control,
-          telefono: alumno.telefono || null,
-          carrera_id,
-          semestre_id: null,
-          id_club,
-        };
-        await createAlumno(payload);
-        // solo si el backend responde OK, actualizar UI local y notificar al padre para lista registrada
-        this.$emit('assign-alumno', { alumnoIndex: index, clubNombre: clubName });
-        this.unregistered.splice(index, 1);
-        if (this.$root.showToast) this.$root.showToast(`Alumno registrado y asignado a ${clubName}`);
+        const data = await getAlumnosPendientes();
+        this.unregistered = Array.isArray(data) ? data : [];
       } catch (e) {
-        if (this.$root.showError) this.$root.showError(e.message || 'Error al asignar alumno');
+        console.error(e);
+        this.safeNotify('error', 'Error al cargar alumnos pendientes');
       }
     },
+    getOpciones(u) {
+      if (u.opciones && Array.isArray(u.opciones)) return u.opciones;
+      if (u.opciones_nombres) return u.opciones_nombres.split(',');
+      return [];
+    },
+    async fetchFromGoogleSheets() {
+      const gSheetUrl = 'https://docs.google.com/spreadsheets/d/1hvi9LM57rV-pa1iP-ynXGMTZETIo_Ug-ElknJGxnO0k/export?format=csv';
+      const proxyUrl = `/api/AlumnosPendientes.php?proxy_url=${encodeURIComponent(gSheetUrl)}`;
+      try {
+        const response = await axios.get(proxyUrl);
+        await this.parseGoogleFormsCSV(response.data, 'Google Sheets (Online)');
+      } catch (e) {
+        this.safeNotify('error', 'Error al conectar con Google Sheets vía Proxy');
+        console.error(e);
+      }
+    },
+    triggerCSV() {
+      this.$refs.csvInput.click();
+    },
+    handleCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        await this.parseGoogleFormsCSV(e.target.result);
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    },
+    async parseGoogleFormsCSV(text, source = 'CSV Local') {
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length < 2) return;
 
-    removeUnregistered(index) {
-      this.unregistered.splice(index, 1);
-      this.$emit('log', { usuario: 'Usuario Oficina', accion: 'Eliminar', tipo: 'alumno_sin_registrar', descripcion: `Registro eliminado` });
-      new bootstrap.Toast(document.getElementById('toastSuccess')).show();
+      const parseCSVLine = (row) => {
+        const result = [];
+        let cur = '';
+        let inQ = false;
+        for (let i = 0; i < row.length; i++) {
+          const c = row[i];
+          if (c === '"') inQ = !inQ;
+          else if (c === ',' && !inQ) {
+            result.push(cur.trim().replace(/^"|"$/g, ''));
+            cur = '';
+          } else cur += c;
+        }
+        result.push(cur.trim().replace(/^"|"$/g, ''));
+        return result;
+      };
+
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+      const dataRows = lines.slice(1);
+
+      const findIndex = (keywords) => {
+        return headers.findIndex(h => keywords.some(k => h.includes(k.toLowerCase())));
+      };
+
+      const idxNombre = findIndex(['nombre', 'completo']);
+      const idxTel = findIndex(['telefono', 'telefónico', 'telefonico']);
+      const idxControl = findIndex(['control']);
+      const idxSemestre = findIndex(['semestre']);
+      const idxCarrera = findIndex(['carrera']);
+      const idxOpt1 = findIndex(['primera opcion', 'opcion 1', 'opción 1']);
+      const idxOpt2 = findIndex(['segunda opcion', 'opcion 2', 'opción 2']);
+      const idxOpt3 = findIndex(['tercera opcion', 'opcion 3', 'opción 3']);
+
+      const newRegistros = [];
+      dataRows.forEach(row => {
+        const cleanCells = parseCSVLine(row);
+        if (cleanCells.length < 2) return;
+
+        const fullNombre = cleanCells[idxNombre] || '';
+        const { nombre, apP, apM } = this.splitNombre(fullNombre);
+        
+        const carName = cleanCells[idxCarrera] || '';
+        const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre.toLowerCase() === carName.toLowerCase()) : null;
+
+        newRegistros.push({
+          nombre, apellidoP: apP, apellidoM: apM,
+          numeroControl: (cleanCells[idxControl] || '').substring(0, 8),
+          telefono: (cleanCells[idxTel] || '').substring(0, 10),
+          carrera_id: carObj ? carObj.id : null,
+          semestre_id: cleanCells[idxSemestre] ? parseInt(cleanCells[idxSemestre]) || null : null,
+          opciones: [
+            cleanCells[idxOpt1], 
+            cleanCells[idxOpt2], 
+            cleanCells[idxOpt3]
+          ].filter(Boolean),
+          estado: 'PENDIENTE'
+        });
+      });
+
+      try {
+        await saveAlumnosPendientes(newRegistros);
+        await this.loadUnregistered();
+        this.$emit('log', { usuario: 'Usuario Oficina', accion: 'Importar', tipo: 'csv', descripcion: `Importados ${newRegistros.length} registros desde ${source}` });
+        this.safeNotify('toast', `Importados ${newRegistros.length} registros`);
+      } catch (e) {
+        this.safeNotify('error', 'Error al guardar registros importados');
+      }
+    },
+    splitNombre(full) {
+      const parts = full.trim().split(/\s+/);
+      let nombre = '', apP = '', apM = '';
+      if (parts.length >= 4) {
+        nombre = parts.slice(0, parts.length - 2).join(' ');
+        apP = parts[parts.length - 2];
+        apM = parts[parts.length - 1];
+      } else if (parts.length === 3) {
+        nombre = parts[0]; apP = parts[1]; apM = parts[2];
+      } else if (parts.length === 2) {
+        nombre = parts[0]; apP = parts[1];
+      } else {
+        nombre = full;
+      }
+      return { nombre, apP, apM };
+    },
+    async assignToClub(alumno, clubName) {
+      if (!clubName) return this.safeNotify('error', 'Club inválido');
+      try {
+        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.nombre === clubName) : null;
+        if (!clubObj || !clubObj.id) throw new Error('No se encontró el ID del club ' + clubName);
+        
+        await updateEstatusPendiente(alumno.id, { 
+          estado: 'APROBADO', 
+          club_solicitado_id: clubObj.id 
+        });
+
+        // Notificar al padre para log y actualización local
+        // El padre espera { alumnoIndex: objetoAlumno, clubNombre: string }
+        this.$emit('assign-alumno', { alumnoIndex: alumno, clubNombre: clubName });
+        
+        // Pedir al padre que recargue la lista de alumnos registrados (ya que el trigger la actualizó)
+        this.$emit('request-reload-alumnos');
+        
+        await this.loadUnregistered();
+        this.safeNotify('toast', `Alumno aprobado y registrado en ${clubName}`);
+      } catch (e) {
+        this.safeNotify('error', e.message || 'Error al asignar alumno');
+      }
+    },
+    async rejectStudent(alumno) {
+      try {
+        await updateEstatusPendiente(alumno.id, { estado: 'RECHAZADO' });
+        await this.loadUnregistered();
+        this.safeNotify('toast', `Alumno marcado como RECHAZADO`);
+      } catch (e) {
+        this.safeNotify('error', 'Error al rechazar alumno');
+      }
+    },
+    async deleteRecord(alumno, index) {
+      if (!confirm('¿Seguro?')) return;
+      try {
+        await deleteAlumnoPendiente(alumno.id);
+        this.unregistered.splice(index, 1);
+        this.safeNotify('toast', `Registro eliminado`);
+      } catch (e) {
+        this.safeNotify('error', 'Error al eliminar');
+      }
     }
   }
 };

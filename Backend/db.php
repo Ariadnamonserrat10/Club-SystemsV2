@@ -1,7 +1,11 @@
 <?php
-// Habilitar errores para depuración
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Habilitar errores para depuración si no se definió lo contrario
+if (ini_get('display_errors') === '0') {
+    // Si el script ya decidió ocultar errores, respetamos eso
+} else {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 
 $host = "127.0.0.1";
 $user = "Encargado";
@@ -38,4 +42,3 @@ if (!function_exists('getMysqli')) {
         return $conexion instanceof mysqli ? $conexion : null;
     }
 }
-?>
