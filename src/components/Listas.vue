@@ -139,11 +139,11 @@
               <tr v-for="(criterio, idx) in previewData.criterios" :key="idx">
                 <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ idx + 1 }}</td>
                 <td style="border: 1px solid #000; padding: 6px;">{{ criterio.descripcion }}</td>
-                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 0 ? 'X' : '' }}</td>
                 <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 1 ? 'X' : '' }}</td>
                 <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 2 ? 'X' : '' }}</td>
                 <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 3 ? 'X' : '' }}</td>
                 <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 4 ? 'X' : '' }}</td>
+                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ criterio.nivel === 5 ? 'X' : '' }}</td>
               </tr>
             </tbody>
           </table>
@@ -632,10 +632,10 @@ export default {
           const nivel = parseInt(evalData.nivel_desempeno);
           console.log('Nivel de desempeño:', nivel);
           
-          if (nivel === 4) desempeno = 'EXCELENTE';
-          else if (nivel === 3) desempeno = 'NOTABLE';
-          else if (nivel === 2) desempeno = 'BUENO';
-          else if (nivel === 1) desempeno = 'SUFICIENTE';
+          if (nivel === 5) desempeno = 'EXCELENTE';
+          else if (nivel === 4) desempeno = 'NOTABLE';
+          else if (nivel === 3) desempeno = 'BUENO';
+          else if (nivel === 2) desempeno = 'SUFICIENTE';
           else desempeno = 'INSUFICIENTE';
           
           valorNumerico = parseFloat(evalData.valor_numerico).toFixed(2);
@@ -653,25 +653,25 @@ export default {
 
           // Construir array de criterios con sus niveles
           criterios = [
-            { descripcion: criteriosDescripciones[0], nivel: parseInt(evalData.criterio_1) || 0 },
-            { descripcion: criteriosDescripciones[1], nivel: parseInt(evalData.criterio_2) || 0 },
-            { descripcion: criteriosDescripciones[2], nivel: parseInt(evalData.criterio_3) || 0 },
-            { descripcion: criteriosDescripciones[3], nivel: parseInt(evalData.criterio_4) || 0 },
-            { descripcion: criteriosDescripciones[4], nivel: parseInt(evalData.criterio_5) || 0 },
-            { descripcion: criteriosDescripciones[5], nivel: parseInt(evalData.criterio_6) || 0 },
-            { descripcion: criteriosDescripciones[6], nivel: parseInt(evalData.criterio_7) || 0 }
+            { descripcion: criteriosDescripciones[0], nivel: parseInt(evalData.criterio_1) || 1 },
+            { descripcion: criteriosDescripciones[1], nivel: parseInt(evalData.criterio_2) || 1 },
+            { descripcion: criteriosDescripciones[2], nivel: parseInt(evalData.criterio_3) || 1 },
+            { descripcion: criteriosDescripciones[3], nivel: parseInt(evalData.criterio_4) || 1 },
+            { descripcion: criteriosDescripciones[4], nivel: parseInt(evalData.criterio_5) || 1 },
+            { descripcion: criteriosDescripciones[5], nivel: parseInt(evalData.criterio_6) || 1 },
+            { descripcion: criteriosDescripciones[6], nivel: parseInt(evalData.criterio_7) || 1 }
           ];
           
           console.log('Criterios procesados:', criterios);
         } else {
           console.log('No se encontró evaluación para este estudiante');
           // Si no hay evaluación, crear criterios vacíos
-          criterios = criteriosDescripciones.map(desc => ({ descripcion: desc, nivel: 0 }));
+          criterios = criteriosDescripciones.map(desc => ({ descripcion: desc, nivel: 1 }));
         }
       } catch (e) {
         console.error('Error obteniendo evaluación:', e);
         // Si hay error, crear criterios vacíos
-        criterios = criteriosDescripciones.map(desc => ({ descripcion: desc, nivel: 0 }));
+        criterios = criteriosDescripciones.map(desc => ({ descripcion: desc, nivel: 1 }));
       }
 
       const data = {
