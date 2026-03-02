@@ -2,13 +2,93 @@
   <div>
     <h3>Constancias</h3>
 
+    <!-- Búsqueda de alumnos -->
+    <div class="mb-4">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control"
+        placeholder="Buscar alumno por nombre..."
+        @input="onSearchInput"
+      />
+      <ul v-if="searchSuggestions.length" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;">
+        <li
+          v-for="suggestion in searchSuggestions"
+          :key="suggestion.id"
+          class="list-group-item list-group-item-action"
+          @click="selectSuggestion(suggestion)"
+        >
+          {{ suggestion.nombre }} {{ suggestion.apellidoP }} {{ suggestion.apellidoM || '' }} - {{ suggestion.club }}
+        </li>
+      </ul>
+      <div v-if="searchQuery && !searchSuggestions.length && searchQuery.length > 2" class="text-muted mt-2">
+        No se encontraron alumnos con ese nombre.
+      </div>
+    </div>
+
+    <!-- Detalle de alumno seleccionado via búsqueda -->
+    <div v-if="selectedStudent" class="card mb-4 border-info shadow-sm">
+      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Detalles del Alumno: {{ selectedStudent.nombre }} {{ selectedStudent.apellidoP }} {{ selectedStudent.apellidoM }}</h6>
+        <button class="btn btn-sm btn-light" @click="selectedStudent = null">Cerrar Detalle</button>
+      </div>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-md-6 mb-2">
+            <p class="mb-1"><strong>Club:</strong> {{ selectedStudent.club }}</p>
+            <p class="mb-1"><strong>Número de Control:</strong> {{ selectedStudent.control || selectedStudent.numeroControl || 'N/A' }}</p>
+          </div>
+          <div class="col-md-6 mb-2">
+            <p class="mb-1"><strong>Monitor:</strong> {{ getMonitorNameForStudent(selectedStudent) }}</p>
+            <p class="mb-1"><strong>Estatus:</strong> 
+              <span :class="isAcreditado(selectedStudent) ? 'text-success' : 'text-danger'">
+                {{ isAcreditado(selectedStudent) ? "Acreditado" : "No acreditado" }}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle">
+            <thead class="table-light text-center">
+              <tr>
+                <th v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" style="font-size: 0.8rem">
+                  {{ fecha }}
+                </th>
+                <th style="font-size: 0.8rem">Faltas</th>
+                <th style="font-size: 0.8rem">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td v-for="fecha in (fechasData.length ? fechasData : fechas)" :key="fecha" class="text-center">
+                  <span v-if="selectedStudent.asistencias?.[fecha]" class="text-success fw-bold">✔</span>
+                  <span v-else class="text-danger fw-bold">✖</span>
+                </td>
+                <td class="text-center">{{ selectedStudent.faltas }}</td>
+                <td class="text-center">
+                  <button
+                    class="btn btn-sm btn-info"
+                    :disabled="!isAcreditado(selectedStudent)"
+                    @click="descargarConstancia(selectedStudent, selectedStudent.club, periodoActual)"
+                  >
+                    Descargar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div
-      v-for="(club, index) in clubs"
+      v-for="(club, index) in sortedClubs"
       :key="club.nombre + index"
       class="card mb-4 shadow-sm"
     >
       <div
-        class="card-header bg-primary text-white d-flex justify-content-between align-items-center"
+        :class="['card-header', 'text-white', 'd-flex', 'justify-content-between', 'align-items-center', club.tipo === 'DEPORTIVO' ? 'bg-primary' : 'bg-secondary']"
       >
         <div>
           {{ club.nombre }} — Monitores:
@@ -20,13 +100,25 @@
         <div class="d-flex gap-2">
           <button
             class="btn btn-sm btn-light"
+            @click="toggleClubCollapse(club.id)"
+          >
+            {{ collapsedClubs[club.id] ? 'Expandir' : 'Colapsar' }}
+          </button>
+          <button
+            class="btn btn-sm btn-light"
             @click="openConstanciaPreview(club)"
           >
             Vista previa
           </button>
+          <button
+            class="btn btn-sm btn-success"
+            @click="descargarTodasConstanciasClub(club.nombre)"
+          >
+            Descargar PDFs
+          </button>
         </div>
       </div>
-      <div class="card-body">
+      <div v-show="!collapsedClubs[club.id]" class="card-body">
         <p>{{ club.descripcion }}</p>
 
         <div
@@ -115,106 +207,25 @@
       <div class="preview-documento">
         <div class="constancia A4" id="constancia">
           <!-- ENCABEZADO CON TABLA Y LOGO -->
-          <table
-            class="tabla-encabezado"
-            cellpadding="8"
-            cellspacing="0"
-            style="
-              width: 100%;
-              border-collapse: collapse;
-              font-family: Arial, sans-serif;
-              font-size: 9pt;
-            "
-          >
-            <tr>
-              <!-- Logo -->
-              <td
-                rowspan="2"
-                style="
-                  border: 1px solid;
-                  width: 90px;
-                  text-align: center;
-                  vertical-align: middle;
-                "
-              >
-                <img
-                  src="../Img/Logo.jpg"
-                  alt="Logo"
-                  style="max-width: 70px; height: auto"
-                />
-              </td>
-
-              <!-- Título -->
-              <td style="border: none; vertical-align: middle">
-                Constancia de cumplimiento de actividad Cultural y/o Deportiva
-              </td>
-
-              <!-- Codigo / Revision / Pagina -->
-              <td
-                rowspan="2"
-                style="
-                  border: 1px solid #000;
-                  width: 32%;
-                  vertical-align: top;
-                  padding: 0;
-                "
-              >
-                <table
-                  style="width: 100%; border-collapse: collapse; font-size: 8pt"
-                >
-                  <tr>
-                    <td
-                      style="
-                        border-bottom: 1px solid black;
-                        padding: 6px;
-                        white-space: nowrap;
-                      "
-                    >
-                      <strong>Codigo:TecNM-VI-PO-003-05</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="border-bottom: 1px solid black; padding: 6px">
-                      Revision: 0
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px">Pagina 1 de 1</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <tr>
-              <!-- Norma -->
-              <td style="border: none; vertical-align: middle">
-                Referencia a la Norma ISO 9001:2015&nbsp;&nbsp;&nbsp;8.1
-              </td>
-            </tr>
-          </table>
+          <img src="../Img/Registro_Club.png" alt="Encabezado Registro Club" style="width: 90%; height: auto; display: block; margin: 0 auto;" />
 
           <h2
             class="titulo-constancia"
-            style="font-size: 11pt; margin: 90px 0 15px 0"
-          >
+            style="font-size: 11pt; margin: 90px 0 15px 0">
             CONSTANCIA DE CUMPLIMIENTO DE ACTIVIDAD CULTURAL Y/O DEPORTIVA
           </h2>
-
           <div class="espacios-mediano"></div>
-
           <div class="cuerpo">
             <p
               class="destinatario"
               style="font-size: 10pt; margin: 0 0 20px 0; line-height: 1.6"
             >
-            <br><br>
+            <br>
               {{ getNombreJefe('jefa_servicios') || '__________________________' }}<br />
               JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES<br />
               PRESENTE
             </p>
-
             <div class="espacios"></div>
-
             <p class="texto justificado">
               La que suscribe {{ getNombreJefe('jefe_actividades') || '__________________________' }}, Jefe del Departamento de Actividades Extraescolares, por este medio se permite hacer de su
               conocimiento que la estudiante
@@ -241,8 +252,7 @@
 
             <table
               class="tabla-firmas"
-              style="width: 100%; border-collapse: collapse "
-            >
+              style="width: 100%; border-collapse: collapse; margin-top: 20px;">
               <tr style="border: none !important;">
                 <td
                   style="
@@ -250,10 +260,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none !important;
-                    
-                  "
-                >
+                    border: none !important;">
                   ATENTAMENTE
                 </td>
                 <td
@@ -262,9 +269,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none !important;
-                  "
-                  >
+                    border: none !important;">
                   Vo. Bo.
                 </td>
               </tr>
@@ -278,9 +283,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none !important;
-                  "
-                >
+                    border: none !important;">
                   <div class="linea-firma"></div>
                   <div class="nombre-firma">{{ getNombreJefe('jefe_promocion') || '__________________________' }}</div>
                   <div class="cargo-firma">
@@ -293,9 +296,7 @@
                     text-align: center;
                     vertical-align: top;
                     padding: 0;
-                    border: none !important;
-                  "
-                >
+                    border: none !important;">
                   <div class="linea-firma"></div>
                   <div class="nombre-firma">{{ getNombreJefe('jefe_actividades') || '__________________________' }}</div>
                   <div class="cargo-firma">
@@ -418,6 +419,7 @@
 
 <script>
 import { getAsistenciasPorClub, getEvaluacion, getFirmas, asignarCargo, saveConfig } from "../services/api";
+import JSZip from 'jszip';
 
 export default {
   name: "Constancias",
@@ -428,15 +430,32 @@ export default {
       periodoActual: this.getPeriodoActual(),
       alumnosPorClub: {}, // Objeto que almacena alumnos por club_id
       fechasData: [], // Fechas desde BD
+      collapsedClubs: {}, // Estado de colapso por club
+      searchQuery: '', // Consulta de búsqueda
+      searchSuggestions: [], // Sugerencias de búsqueda
       jefesSeleccionados: {
         jefe_promocion: "",
         jefe_actividades: "",
         jefa_servicios: "",
         jefa_servicios_nombre: ""
-      }
+      },
+      selectedStudent: null // Alumno seleccionado por búsqueda
     };
   },
   computed: {
+    sortedClubs() {
+      if (!Array.isArray(this.clubs)) return [];
+      return [...this.clubs].sort((a, b) => {
+        const tipoA = (a.tipo || '').toUpperCase();
+        const tipoB = (b.tipo || '').toUpperCase();
+        // Deportivos primero (DEPORTIVO < CULTURAL alfabéticamente)
+        if (tipoA !== tipoB) {
+          return tipoA.localeCompare(tipoB);
+        }
+        // Si mismo tipo, ordenar por nombre
+        return (a.nombre || '').localeCompare(b.nombre || '');
+      });
+    },
     usuariosOficina() {
       if (!this.usuarios) return [];
       return this.usuarios.filter(u => 
@@ -586,7 +605,7 @@ export default {
                 const faltas = Object.values(map).filter(
                   (v) => v === false,
                 ).length;
-                return { ...al, asistencias: map, faltas };
+                return { ...al, asistencias: map, faltas, club: club.nombre };
               });
             } catch (e) {
               console.error(
@@ -603,15 +622,26 @@ export default {
     },
     filteredAlumnos(clubName) {
       // Buscar el club por nombre
-      const club = (this.clubs || []).find((c) => c.nombre === clubName);
+      const club = (this.sortedClubs || []).find((c) => c.nombre === clubName);
 
       // Si tenemos datos de BD para este club, usarlos
+      let alumnos = [];
       if (club && club.id && this.alumnosPorClub[club.id]) {
-        return this.alumnosPorClub[club.id];
+        alumnos = this.alumnosPorClub[club.id];
+      } else {
+        // Fallback a props
+        alumnos = (this.alumnos || []).filter((a) => a.club === clubName);
       }
 
-      // Fallback a props
-      return (this.alumnos || []).filter((a) => a.club === clubName);
+      // Filtrar por búsqueda si hay query
+      if (this.searchQuery && this.searchQuery.length >= 3) {
+        const query = this.searchQuery.toLowerCase();
+        alumnos = alumnos.filter(alumno =>
+          `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.toLowerCase().includes(query)
+        );
+      }
+
+      return alumnos;
     },
     downloadAll() {
       const rows = [];
@@ -680,6 +710,48 @@ export default {
     isAcreditado(alumno) {
       const faltas = Number(alumno?.faltas ?? 0);
       return Number.isFinite(faltas) ? faltas <= 2 : false;
+    },
+    toggleClubCollapse(clubId) {
+      this.collapsedClubs[clubId] = !this.collapsedClubs[clubId];
+    },
+    onSearchInput() {
+      if (this.searchQuery.length < 3) {
+        this.searchSuggestions = [];
+        return;
+      }
+      const query = this.searchQuery.toLowerCase();
+      const allAlumnos = [];
+      Object.values(this.alumnosPorClub).forEach(alumnos => {
+        allAlumnos.push(...alumnos);
+      });
+      this.searchSuggestions = allAlumnos.filter(alumno =>
+        `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.toLowerCase().includes(query)
+      ).slice(0, 10); // Limitar a 10 sugerencias
+    },
+    selectSuggestion(suggestion) {
+      this.searchQuery = `${suggestion.nombre} ${suggestion.apellidoP} ${suggestion.apellidoM || ''}`;
+      this.searchSuggestions = [];
+      this.selectedStudent = suggestion; // Guardar el alumno seleccionado para mostrar detalles
+      
+      // Cerrar todos los clubs
+      this.sortedClubs.forEach(c => {
+        this.collapsedClubs[c.id] = true;
+      });
+      // Expandir el club del alumno
+      const club = this.sortedClubs.find(c => c.nombre === suggestion.club);
+      if (club) {
+        this.collapsedClubs[club.id] = false;
+      }
+    },
+    getMonitorNameForStudent(alumno) {
+      if (!alumno || !alumno.club) return "Sin asignar";
+      const club = (this.clubs || []).find(c => c.nombre === alumno.club);
+      if (!club) return "Sin asignar";
+      const monitores = this.getClubMonitores(club);
+      if (monitores && monitores.length) {
+        return monitores.map(m => this.formatMonitorNombre(m)).join(", ");
+      }
+      return "Sin asignar";
     },
     openConstanciaPreview(club) {
       const periodo = this.getPeriodoActual();
@@ -780,17 +852,14 @@ export default {
             jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
           };
 
-          // Cargar html2pdf desde CDN
+          // Usar html2pdf
           if (typeof html2pdf === "undefined") {
-            const script = document.createElement("script");
-            script.src =
-              "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-            document.head.appendChild(script);
-            script.onload = () => {
-              setTimeout(() => {
+            setTimeout(() => {
+              // Si aún no cargó, esperar
+              if (typeof html2pdf !== "undefined") {
                 html2pdf().set(opt).from(nodo).save();
-              }, 200);
-            };
+              }
+            }, 1000);
           } else {
             setTimeout(() => {
               html2pdf().set(opt).from(nodo).save();
@@ -799,8 +868,84 @@ export default {
         }, 300);
       });
     },
+    async generarPDFBlob() {
+      return new Promise((resolve, reject) => {
+        this.$nextTick(() => {
+          setTimeout(() => {
+            const nodo = document.getElementById("constancia");
+            if (!nodo || !this.previewData) {
+              reject(new Error('No hay datos para generar PDF'));
+              return;
+            }
+
+            const opt = {
+              margin: [15, 15, 15, 15],
+              image: { type: "jpeg", quality: 0.98 },
+              html2canvas: { 
+                scale: 2,
+                allowTaint: true,
+                useCORS: true,
+                logging: false,
+                windowHeight: nodo.scrollHeight
+              },
+              jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
+            };
+
+            if (typeof html2pdf === "undefined") {
+              setTimeout(() => {
+                if (typeof html2pdf !== "undefined") {
+                  html2pdf().set(opt).from(nodo).outputPdf('blob').then(resolve).catch(reject);
+                } else {
+                  reject(new Error('html2pdf no está disponible'));
+                }
+              }, 1000);
+            } else {
+              setTimeout(() => {
+                html2pdf().set(opt).from(nodo).outputPdf('blob').then(resolve).catch(reject);
+              }, 200);
+            }
+          }, 300);
+        });
+      });
+    },
     toUpper(v) {
       return (v == null ? "" : String(v)).toUpperCase();
+    },
+    async descargarTodasConstanciasClub(clubNombre) {
+      const alumnosAcreditados = this.filteredAlumnos(clubNombre).filter(alumno => this.isAcreditado(alumno));
+      console.log('Alumnos acreditados:', alumnosAcreditados);
+      if (!alumnosAcreditados.length) {
+        alert(`No hay alumnos acreditados en el club ${clubNombre}`);
+        return;
+      }
+
+      const zip = new JSZip();
+      const folder = zip.folder(`Constancias_${clubNombre.replace(/\s+/g, '_')}`);
+
+      for (const alumno of alumnosAcreditados) {
+        // Preparar datos para el alumno
+        await this.descargarConstancia(alumno, clubNombre, this.periodoActual);
+        // Esperar a que previewData se actualice
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Generar PDF como blob
+        const pdfBlob = await this.generarPDFBlob();
+        
+        // Agregar al ZIP
+        const nombreArchivo = `Constancia_${alumno.nombre}_${alumno.apellidoP}_${alumno.numeroControl || 'SIN_CONTROL'}.pdf`;
+        folder.file(nombreArchivo, pdfBlob);
+      }
+
+      // Generar y descargar el ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Constancias_${clubNombre.replace(/\s+/g, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     },
     printStyles() {
       return `
@@ -874,8 +1019,16 @@ export default {
   },
   watch: {
     clubs: {
-      handler() {
+      handler(newClubs) {
         this.loadAsistenciasPorClubs();
+        // Inicializar collapsed para nuevos clubs
+        if (Array.isArray(newClubs)) {
+          newClubs.forEach(club => {
+            if (!(club.id in this.collapsedClubs)) {
+              this.collapsedClubs[club.id] = true;
+            }
+          });
+        }
       },
       deep: true,
     },
@@ -883,6 +1036,18 @@ export default {
   async mounted() {
     await this.loadCargos();
     this.loadAsistenciasPorClubs();
+    // Inicializar collapsedClubs con todos colapsados
+    if (Array.isArray(this.clubs)) {
+      this.clubs.forEach(club => {
+        this.collapsedClubs[club.id] = true;
+      });
+    }
+    // Cargar html2pdf si no está disponible
+    if (typeof html2pdf === "undefined") {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      document.head.appendChild(script);
+    }
   },
 };
 </script>
@@ -1135,6 +1300,7 @@ export default {
   text-align: left;
   font-size: 9pt;
   padding-top: 5px;
+  margin-top: -50px;
   border: none;
 }
 

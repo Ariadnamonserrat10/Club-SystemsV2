@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h3>Gestionar usuarios</h3>
+    <h3 class="text-center fw-bold">Gestionar usuarios</h3>
 
     <div class="row mb-3">
       <div class="col-md-4">
@@ -15,7 +15,7 @@
       </div>
     </div>
 
-    <table class="table table-striped table-bordered">
+      <table class="table table-striped table-bordered">
       <thead class="table-primary">
         <tr>
           <th>Foto</th>
@@ -31,10 +31,10 @@
           <td>
             <img :src="u.foto || placeholder" alt="foto" width="36" height="36" class="rounded-circle"/>
           </td>
-          <td>{{ u.nombre }} {{ u.apellidoP }} {{ u.apellidoM }}</td>
+          <td style="vertical-align: middle">{{ u.nombre }} {{ u.apellidoP }} {{ u.apellidoM }}</td>
           <td>{{ u.usuario }}</td>
           <td><span class="badge" :class="u.tipo==='OFICINA'?'bg-primary':'bg-info'">{{ u.tipo }}</span></td>
-          <td>{{ u.club_asignado || '-' }}</td>
+          <td>{{ u.tipo === 'MONITOR' ? getClubName(u.club_asignado) : '-' }}</td>
           <td>
             <button class="btn btn-warning btn-sm me-2" @click="openEdit(u)">Editar</button>
             <button class="btn btn-danger btn-sm" @click="onDelete(u)">Eliminar</button>
@@ -70,16 +70,12 @@
                 <label class="form-label">Usuario</label>
                 <input v-model="form.usuario" class="form-control"/>
               </div>
-              <div class="col-md-4">
-                <label class="form-label">Tipo</label>
-                <select v-model="form.tipo" class="form-select">
-                  <option value="OFICINA">OFICINA</option>
-                  <option value="MONITOR">MONITOR</option>
+              <div class="col-md-6">
+                <label class="form-label">Club asignado</label>
+                <select v-model.number="form.club_asignado" class="form-select">
+                  <option :value="0">-- Ninguno --</option>
+                  <option v-for="c in clubsList" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                 </select>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Club asignado (id)</label>
-                <input v-model.number="form.club_asignado" type="number" class="form-control"/>
               </div>
             </div>
             <div class="row g-2 mt-2">
@@ -107,7 +103,7 @@
 </template>
 
 <script>
-import { getUsuarios, updateUsuario, deleteUsuario, uploadFoto } from '../services/api';
+import { getUsuarios, updateUsuario, deleteUsuario, uploadFoto, getClubs } from '../services/api';
 
 export default {
   name: 'Gestion',
@@ -116,6 +112,7 @@ export default {
     return {
       filterTipo: '',
       list: [],
+          clubsList: [],
       showModal: false,
       form: {},
       selectedId: null,
@@ -141,6 +138,20 @@ export default {
         console.error(e);
         alert(e.message || 'Error al cargar usuarios');
       }
+    },
+    async loadClubs() {
+      try {
+        const res = await getClubs();
+        this.clubsList = Array.isArray(res) ? res : [];
+      } catch (e) {
+        console.error('Error cargando clubs:', e);
+        this.clubsList = [];
+      }
+    },
+    getClubName(id) {
+      if (!id) return '-';
+      const c = (this.clubsList || []).find(x => String(x.id) === String(id));
+      return c ? c.nombre : String(id);
     },
     openEdit(u) {
       this.selectedId = u.id;
@@ -202,6 +213,7 @@ export default {
   },
   mounted() {
     this.loadUsuarios();
+    this.loadClubs();
   }
 };
 </script>
@@ -209,4 +221,7 @@ export default {
 <style scoped>
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1040; }
 .modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index: 1050; }
+/* centrar encabezados de tablas y títulos en este componente */
+table thead th { text-align: center; vertical-align: middle; }
+h3 { text-align: center; font-weight: 700; }
 </style>

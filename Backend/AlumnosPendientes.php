@@ -37,24 +37,6 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
 
     if ($method === 'GET') {
-        // Proxy para Google Sheets
-        if (isset($_GET['proxy_url'])) {
-            $targetUrl = $_GET['proxy_url'];
-            if (strpos($targetUrl, 'https://docs.google.com/') === 0) {
-                // Simplificado para evitar problemas con curl en algunos entornos
-                $ctx = stream_context_create(['http' => ['follow_location' => true]]);
-                $content = @file_get_contents($targetUrl, false, $ctx);
-                if ($content !== false) {
-                    header('Content-Type: text/plain; charset=utf-8');
-                    echo $content;
-                    exit;
-                }
-            }
-            http_response_code(400);
-            echo json_encode(['error' => 'No se pudo obtener el contenido de la URL remota']);
-            exit;
-        }
-
         // Listar alumnos
         $rows = [];
         $sql = 'SELECT * FROM alumnos_pendientes ORDER BY fecha_creacion DESC';
@@ -80,9 +62,12 @@ try {
 
         $conexion->begin_transaction();
         try {
+            // Desactivar FK checks para permitir semestre_id como valor directo (no siempre hay tabla semestres poblada)
+            $conexion->query('SET FOREIGN_KEY_CHECKS=0');
+
             $cols = "nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, club_solicitado_id, estado";
             $placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?";
-            $types = "sssssiisi"; // Fixed: club_solicitado_id is int (i)
+            $types = "sssssiiis";
             if ($hasOpcionesCol) {
                 $cols .= ", opciones_nombres";
                 $placeholders .= ", ?";
@@ -117,6 +102,7 @@ try {
                 }
             }
 
+            $conexion->query('SET FOREIGN_KEY_CHECKS=1');
             $conexion->commit();
             echo json_encode(['status' => 'success', 'message' => count($items) . ' registros procesados']);
             exit;

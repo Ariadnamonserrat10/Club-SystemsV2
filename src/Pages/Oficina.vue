@@ -60,7 +60,7 @@
               href="#"
               class="nav-link text-white"
               @click.prevent="setView('Listas')"
-              >Listas de clubs</a
+              >Evaluaciones de clubs</a
             >
           </li>
 
@@ -123,6 +123,7 @@
         @set-alumnos="handleSetAlumnos"
         @update-alumno="handleUpdateAlumno"
         @request-reload-alumnos="loadAlumnos"
+        @request-reload-clubs="loadClubs"
         @refresh-carreras="loadCarreras"
       />
     </div>
