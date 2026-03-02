@@ -1,8 +1,85 @@
 <template>
   <div>
-    <h4 class="text-primary mb-3">Listas de Clubs</h4>
+    <h4 class="text-primary mb-3">Evaluaciones de Clubs</h4>
 
+    <!-- Búsqueda de alumnos -->
     <div class="mb-3">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control"
+        placeholder="Buscar alumno por nombre..."
+        @input="onSearchInput"
+      />
+      <ul v-if="searchSuggestions.length" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;">
+        <li
+          v-for="suggestion in searchSuggestions"
+          :key="suggestion.id"
+          class="list-group-item list-group-item-action"
+          @click="selectSuggestion(suggestion)"
+        >
+          {{ suggestion.nombre }} {{ suggestion.apellidoP }} {{ suggestion.apellidoM || '' }} - {{ suggestion.club }}
+        </li>
+      </ul>
+      <div v-if="searchQuery && !searchSuggestions.length && searchQuery.length > 2 && !selectedStudent" class="text-muted mt-2">
+        No se encontraron alumnos con ese nombre.
+      </div>
+    </div>
+
+    <!-- Detalle de alumno seleccionado via búsqueda -->
+    <div v-if="selectedStudent" class="card mb-4 border-info shadow-sm">
+      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0">Datos del Alumno: {{ selectedStudent.nombre }} {{ selectedStudent.apellidoP }} {{ selectedStudent.apellidoM }}</h6>
+        <button class="btn btn-sm btn-light" @click="selectedStudent = null; searchQuery = ''">Cerrar</button>
+      </div>
+      <div class="card-body p-3">
+        <div class="row mb-3">
+          <div class="col-md-6 mb-2">
+            <p class="mb-1"><strong>Club:</strong> {{ selectedStudent.club }}</p>
+            <p class="mb-1"><strong>No. Control:</strong> {{ selectedStudent.control || selectedStudent.numeroControl || 'N/A' }}</p>
+          </div>
+          <div class="col-md-6 mb-2">
+            <p class="mb-1"><strong>Monitor:</strong> {{ getMonitorNameForStudent(selectedStudent) }}</p>
+            <p class="mb-1"><strong>Estatus:</strong> 
+              <span :class="selectedStudent.faltas < 3 ? 'text-success' : 'text-danger'">
+                {{ selectedStudent.faltas < 3 ? "Acreditado" : "No acreditado" }}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle">
+            <thead class="table-primary text-center">
+              <tr>
+                <th v-for="fecha in fechasCols" :key="fecha" style="font-size: 0.8rem">
+                  {{ fecha }}
+                </th>
+                <th style="font-size: 0.8rem">Faltas</th>
+                <th style="font-size: 0.8rem">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td v-for="fecha in fechasCols" :key="fecha" class="text-center">
+                  <span v-if="selectedStudent.asistencias && selectedStudent.asistencias[fecha]" class="text-success fw-bold">✔</span>
+                  <span v-else class="text-danger fw-bold">✖</span>
+                </td>
+                <td class="text-center">{{ selectedStudent.faltas }}</td>
+                <td class="text-center">
+                  <button v-if="evaluados[selectedStudent.id || selectedStudent.numeroControl]" class="btn btn-sm btn-info" @click="imprimirConstancia(selectedStudent)">
+                    Descargar Evaluación
+                  </button>
+                  <span v-else class="text-muted">No evaluado</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3" v-if="!selectedStudent">
       <label class="form-label">Selecciona un club:</label>
       <select v-model="clubSeleccionado" class="form-select">
         <option disabled value="">-- Seleccionar --</option>
@@ -12,7 +89,7 @@
       </select>
     </div>
 
-    <div v-if="clubSeleccionado">
+    <div v-if="clubSeleccionado && !selectedStudent">
       <h5 class="mt-3 text-secondary">Alumnos del {{ clubSeleccionado }}</h5>
       <table class="table table-bordered table-hover mt-3">
         <thead class="table-primary">
@@ -41,11 +118,9 @@
               </span>
             </td>
             <td>
-              <button
-                class="btn btn-sm btn-outline-info"
-                @click="descargarConstancia(alumno)"
-              >
-                Descargar
+              <span v-if="!evaluados[alumno.numeroControl]" class="text-muted">No evaluado</span>
+              <button v-else class="btn btn-sm btn-outline-info" @click="descargarConstancia(alumno)">
+                Descargar Evaluación
               </button>
             </td>
           </tr>
@@ -55,9 +130,6 @@
       <div class="text-end mt-3">
         <button class="btn btn-outline-secondary me-2" @click="descargarEvaluacionClub">
           Descargar evaluación del club
-        </button>
-        <button class="btn btn-success" @click="descargarTodas">
-          Descargar todas (PDF)
         </button>
       </div>
     </div>
@@ -70,41 +142,7 @@
       <div class="preview-documento">
         <div class="constancia A4" id="constancia" style="padding: 5mm 10mm 15mm 10mm; position: relative; min-height: 260mm; box-sizing: border-box;">
           <!-- ENCABEZADO -->
-          <table
-            class="tabla-encabezado"
-            cellpadding="0"
-            cellspacing="0"
-            style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 8pt; border: 1px solid #000;"
-          >
-            <tr>
-              <!-- Logo -->
-              <td rowspan="2" style="border-right: 1px solid #000; width: 120px; text-align: center; vertical-align: middle; padding: 5px;">
-                <img src="../Img/Logo.jpg" alt="Logo" style="max-width: 100px; height: auto" />
-              </td>
-              <!-- Título -->
-              <td style="border-right: 1px solid #000; border-bottom: 1px solid #000; font-weight: bold; text-align: center; vertical-align: middle; padding: 5px;">
-                Evaluación al desempeño de la Actividad Promoción Cultural y/o Deportiva
-              </td>
-              <!-- Detalles -->
-              <td rowspan="2" style="width: 180px; padding: 0; vertical-align: top;">
-                <table style="width: 100%; height: 100%; border-collapse: collapse; font-size: 8pt;">
-                  <tr style="height: 33.33%;">
-                    <td style="border-bottom: 1px solid #000; padding: 4px 6px; font-weight: bold;">Código: TecNM-VI-PO-003-04</td>
-                  </tr>
-                  <tr style="height: 33.33%;">
-                    <td style="border-bottom: 1px solid #000; padding: 4px 6px;">Referencia a la Norma ISO 9001:2015 8.2.2</td>
-                  </tr>
-                  <tr style="height: 33.33%;">
-                    <td style="padding: 4px 6px;">Revisión: 0<br>Página 2 de 2</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <!-- Fila inferior vacía para estructura -->
-              <td style="border-right: 1px solid #000; padding: 4px;"></td>
-            </tr>
-          </table>
+          <img src="../Img/Evaluacion_club.png" alt="Encabezado Evaluacion Club" style="width: 83%; height: auto; display: block; margin: 0 auto;" />
 
           <div style="margin-top: 15px; text-align: center; font-size: 9pt; font-weight: bold;">
             INSTITUTO TECNOLÓGICO DE TLAXIACO<br>
@@ -161,7 +199,7 @@
           </div>
 
           <!-- PIE DE PÁGINA -->
-          <div style="position: absolute; bottom: 5mm; left: 10mm; right: 10mm; font-size: 8pt; display: flex; justify-content: space-between;">
+          <div style="position: absolute; bottom: 6%; left: 10mm; right: 10mm; font-size: 8pt; display: flex; justify-content: space-between;">
             <span>TecNM-VI-PO-003-04</span>
             <span>Rev. 0</span>
           </div>
@@ -243,43 +281,7 @@
       <div class="preview-documento">
         <div class="constancia A4" id="evaluacion-club" style="padding: 5mm 10mm 15mm 10mm; position: relative; min-height: 260mm; box-sizing: border-box;">
           <!-- ENCABEZADO -->
-          <table
-            class="tabla-encabezado"
-            cellpadding="0"
-            cellspacing="0"
-            style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 8pt; border: 1px solid #000;"
-          >
-            <tr>
-              <!-- Columna Logo -->
-              <td rowspan="2" style="border-right: 1px solid #000; width: 120px; text-align: center; vertical-align: middle; padding: 5px;">
-                <img src="../Img/Logo.jpg" alt="Logo" style="max-width: 100px; height: auto" />
-              </td>
-              <!-- Columna Título -->
-              <td style="border-right: 1px solid #000; border-bottom: 1px solid #000; font-weight: bold; text-align: center; vertical-align: middle; padding: 5px;">
-                Formato de Resultados de Actividades Culturales y/o Deportivas.
-              </td>
-              <!-- Columna Detalles Header -->
-              <td rowspan="2" style="width: 180px; padding: 0; vertical-align: top;">
-                <table style="width: 100%; height: 100%; border-collapse: collapse; font-size: 8pt;">
-                  <tr style="height: 33.33%;">
-                    <td style="border-bottom: 1px solid #000; padding: 4px 6px; font-weight: bold;">Código: TecNM-VI-PO-003-03</td>
-                  </tr>
-                  <tr style="height: 33.33%;">
-                    <td style="border-bottom: 1px solid #000; padding: 4px 6px;">Revisión: 0</td>
-                  </tr>
-                  <tr style="height: 33.33%;">
-                    <td style="padding: 4px 6px;">Página 1 de 1</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <!-- Fila Inferior Centro: Norma -->
-              <td style="border-right: 1px solid #000; text-align: left; vertical-align: middle; padding: 4px 10px;">
-                Referencia a la Norma ISO 9001:2015 8.1, 8.2.1, 8.2.2
-              </td>
-            </tr>
-          </table>
+          <img src="../Img/Resultado_Actividades.png" alt="Encabezado Resultado Actividades" style="width: 83%; height: auto; display: block; margin: 0 auto;" />
 
           <div style="margin-top: 20px; text-align: center; font-size: 9pt; font-weight: bold;">
             DEPARTAMENTO DE ACTIVIDADES EXTRAESCOLARES<br />
@@ -327,7 +329,7 @@
           </div>
 
           <!-- FIRMAS -->
-          <table style="width: 100%; border-collapse: collapse; margin-top: 40px; font-size: 8pt; text-align: center;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 38px; font-size: 8pt; text-align: center;">
             <tr style="border: none !important;">
               <td style="width: 33%; border: none !important; vertical-align: top;">
                 <div style="border-top: 1px solid #000; margin: 40px 10px 0; padding-top: 5px;">
@@ -351,7 +353,7 @@
           </table>
 
           <!-- PIE DE PAGINA -->
-          <div style="position: absolute; bottom: 5mm; left: 10mm; right: 10mm; font-size: 8pt; display: flex; justify-content: space-between;">
+          <div style="position: absolute; bottom: 2%; left: 10mm; right: 10mm; font-size: 8pt; display: flex; justify-content: space-between;">
             <span>TecNM-VI-PO-003-03</span>
             <span>Rev. 0</span>
           </div>
@@ -420,11 +422,16 @@ export default {
       periodoActual: this.getPeriodoActual(),
       alumnosData: [],
       fechasData: [],
+      alumnosPorClub: {}, // Objeto que almacena alumnos por club_id
+      evaluados: {}, // Objeto para marcar alumnos evaluados
+      searchQuery: '', // Consulta de búsqueda
+      searchSuggestions: [], // Sugerencias de búsqueda
       jefesSeleccionados: {
         jefe_promocion: "",
         jefe_actividades: "",
         jefa_servicios_nombre: ""
-      }
+      },
+      selectedStudent: null // Alumno seleccionado por búsqueda
     };
   },
   computed: {
@@ -485,6 +492,48 @@ export default {
     },
   },
   methods: {
+    async loadAsistenciasPorClubs() {
+      try {
+        // Cargar asistencias para cada club
+        for (const club of this.clubs || []) {
+          if (club.id) {
+            try {
+              const data = await getAsistenciasPorClub(club.id);
+              this.alumnosPorClub[club.id] = Array.isArray(data.alumnos)
+                ? data.alumnos
+                : [];
+
+              // Agregar fechas únicas
+              if (Array.isArray(data.fechas)) {
+                this.fechasData = [
+                  ...new Set([...this.fechasData, ...data.fechas]),
+                ].sort();
+              }
+
+              // Mapear asistencias
+              const asist = data.asistencias || {};
+              this.alumnosPorClub[club.id] = (
+                this.alumnosPorClub[club.id] || []
+              ).map((al) => {
+                const map = { ...(asist[al.id] || {}) };
+                const faltas = Object.values(map).filter(
+                  (v) => v === false,
+                ).length;
+                return { ...al, asistencias: map, faltas, club: club.nombre, numeroControl: al.numeroControl || al.control };
+              });
+            } catch (e) {
+              console.error(
+                `Error cargando asistencias para club ${club.id}:`,
+                e,
+              );
+              this.alumnosPorClub[club.id] = [];
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error cargando asistencias por clubs:", e);
+      }
+    },
     async loadAsistencias() {
       // Limpiar datos anteriores para evitar mezcla visual mientras se actualiza
       this.alumnosData = [];
@@ -500,6 +549,7 @@ export default {
             asistencias: a.asistencias || {},
             faltas: Object.values(a.asistencias || {}).filter(v => v === false).length
           }));
+          this.alumnosData.forEach(al => this.checkEvaluado(al));
         } else {
           this.alumnosData = [];
         }
@@ -519,6 +569,7 @@ export default {
             asistencias: a.asistencias || {},
             faltas: Object.values(a.asistencias || {}).filter(v => v === false).length
           }));
+          this.alumnosData.forEach(al => this.checkEvaluado(al));
         } else {
           const asist = data.asistencias || {};
           this.alumnosData = alumnos.map(al => {
@@ -531,9 +582,13 @@ export default {
               asistencias: map, 
               faltas,
               carrera: al.carrera || (alumnoInfo ? alumnoInfo.carrera : ''),
-              semestre: al.semestre || (alumnoInfo ? alumnoInfo.semestre : '')
+              semestre: al.semestre || (alumnoInfo ? alumnoInfo.semestre : ''),
+              club: club.nombre,
+              numeroControl: al.numeroControl || al.control
             };
           });
+          // Verificar evaluaciones
+          this.alumnosData.forEach(al => this.checkEvaluado(al));
         }
       } catch (e) {
         console.error('Error cargando asistencias:', e);
@@ -546,6 +601,7 @@ export default {
             asistencias: a.asistencias || {},
             faltas: Object.values(a.asistencias || {}).filter(v => v === false).length
           }));
+          this.alumnosData.forEach(al => this.checkEvaluado(al));
         } else {
           this.alumnosData = [];
         }
@@ -556,9 +612,21 @@ export default {
       const totalFaltas = Object.values(asist).filter(
         (v) => v === false,
       ).length;
-      this.$set
-        ? this.$set(alumno, "faltas", totalFaltas)
-        : (alumno.faltas = totalFaltas);
+      alumno.faltas = totalFaltas;
+    },
+    async checkEvaluado(alumno) {
+      try {
+        const evalData = await getEvaluacion({ 
+          nombre_estudiante: `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.trim(), 
+          nombre_club: (alumno.club || '') 
+        });
+        if (evalData) {
+          if (alumno.numeroControl) this.evaluados[alumno.numeroControl] = true;
+          if (alumno.id) this.evaluados[alumno.id] = true;
+        }
+      } catch (e) {
+        console.error('Error verificando evaluación:', e);
+      }
     },
     toUpper(v) {
       return (v == null ? "" : String(v)).toUpperCase();
@@ -663,10 +731,11 @@ export default {
           ];
           
           console.log('Criterios procesados:', criterios);
+          this.evaluados[alumno.numeroControl] = true;
         } else {
           console.log('No se encontró evaluación para este estudiante');
-          // Si no hay evaluación, crear criterios vacíos
-          criterios = criteriosDescripciones.map(desc => ({ descripcion: desc, nivel: 1 }));
+          alert('Este alumno no ha sido evaluado.');
+          return;
         }
       } catch (e) {
         console.error('Error obteniendo evaluación:', e);
@@ -711,17 +780,18 @@ export default {
 
           const nombre = `${this.previewData.estudianteNombre.replace(/\s+/g, "_")}_${this.previewData.numeroControl}`;
           const opt = {
-            margin: [10, 10, 10, 10],
+            margin: [5, 5, 5, 5],
             filename: `Evaluacion_${nombre}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
+            image: { type: "jpeg", quality: 0.95 },
             html2canvas: { 
-              scale: 2,
+              scale: 1.4,
               allowTaint: true,
               useCORS: true,
               logging: false,
               windowHeight: nodo.scrollHeight
             },
             jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
+            pagebreak: { mode: ['css', 'legacy'] }
           };
 
           // Cargar html2pdf desde CDN
@@ -742,9 +812,6 @@ export default {
           }
         }, 300);
       });
-    },
-    descargarTodas() {
-      console.warn('Descargar todas (PDF) no implementado');
     },
     async descargarEvaluacionClub() {
       if (!this.clubSeleccionado) {
@@ -770,17 +837,18 @@ export default {
 
           const nombreClub = this.previewEvaluacion.club.replace(/\s+/g, "_");
           const opt = {
-            margin: [10, 10, 10, 10],
+            margin: [5, 5, 5, 5],
             filename: `Evaluacion_Club_${nombreClub}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
+            image: { type: "jpeg", quality: 0.95 },
             html2canvas: { 
-              scale: 2, 
+              scale: 1.4, 
               useCORS: true, 
               allowTaint: true, 
               logging: false, 
               windowHeight: nodo.scrollHeight 
             },
             jsPDF: { orientation: "portrait", unit: "mm", format: "letter" },
+            pagebreak: { mode: ['css', 'legacy'] }
           };
 
           if (typeof html2pdf === "undefined") {
@@ -869,6 +937,90 @@ export default {
       const u = this.usuariosOficina.find(user => user.id == id);
       return u ? this.formatNombre(u) : '';
     },
+    onSearchInput() {
+      // al escribir nuevo texto, borrar detalle previo
+      if (this.selectedStudent) {
+        this.selectedStudent = null;
+      }
+      if (this.searchQuery.length < 3) {
+        this.searchSuggestions = [];
+        return;
+      }
+      const query = this.searchQuery.toLowerCase();
+      // Usar alumnos de props para búsqueda
+      const allAlumnos = this.alumnos || [];
+      this.searchSuggestions = allAlumnos.filter(alumno =>
+        `${alumno.nombre} ${alumno.apellidoP} ${alumno.apellidoM || ''}`.toLowerCase().includes(query)
+      ).slice(0, 10); // Limitar a 10 sugerencias
+    },
+    selectSuggestion(suggestion) {
+      this.searchQuery = `${suggestion.nombre} ${suggestion.apellidoP} ${suggestion.apellidoM || ''}`;
+      this.searchSuggestions = [];
+      
+      // configurar detalle básico
+      const asist = suggestion.asistencias || {};
+      const totalFaltas = Object.values(asist).filter(v => v === false).length;
+      this.selectedStudent = { 
+        ...suggestion, 
+        asistencias: asist, 
+        faltas: totalFaltas,
+        evaluado: this.evaluados[suggestion.id || suggestion.numeroControl] || false
+      };
+      
+      if (suggestion.club) {
+        this.clubSeleccionado = suggestion.club;
+      }
+      // Cargar asistencias actualizadas y completar datos del alumno
+      this.loadAsistencias().then(() => {
+        const match = (this.alumnosData || []).find(a =>
+          String(a.id) === String(suggestion.id) ||
+          a.numeroControl === suggestion.numeroControl ||
+          a.control === suggestion.control
+        );
+        if (match) {
+          this.selectedStudent = { ...this.selectedStudent, ...match };
+        }
+      }).catch(() => {});
+    },
+    formatMonitorNombre(monitor) {
+      if (!monitor) return "";
+      if (typeof monitor === "string") {
+        const parts = monitor.trim().split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return `${parts[0]} ${parts[1]}`;
+        return parts[0] || "";
+      }
+      const nombre = (monitor.nombre || monitor.nombres || "").split(/\s+/)[0] || "";
+      const apStr = (monitor.apellidoP || monitor.apellido || monitor.apellidos || "").toString().trim();
+      const apellidoP = apStr ? apStr.split(/\s+/)[0] : "";
+      return [nombre, apellidoP].filter(Boolean).join(" ");
+    },
+    getMonitorNameForStudent(alumno) {
+      if (!alumno || !alumno.club) return "Sin asignar";
+      const club = (this.clubs || []).find(c => c.nombre === alumno.club);
+      if (!club) return "Sin asignar";
+      
+      // Intentar obtener monitores asignados a este club desde this.usuarios
+      const monitores = (this.usuarios || []).filter(u => {
+        const tipo = (u.tipo || "").toString().toUpperCase();
+        if (tipo !== 'MONITOR') return false;
+        
+        const clubAsignado = String(u.club_asignado || u.id_club || u.club_id || '');
+        const clubNameAsignado = String(u.club_nombre || u.club || '');
+        
+        return (clubAsignado === String(club.id)) || (clubNameAsignado === club.nombre);
+      });
+
+      if (monitores.length) {
+        return monitores.map(m => this.formatMonitorNombre(m)).join(", ");
+      }
+      
+      // Fallback a club.monitores if available
+      if (Array.isArray(club.monitores) && club.monitores.length) {
+        return club.monitores.map(m => this.formatMonitorNombre(m)).join(", ");
+      }
+      
+      return "Sin asignar";
+    },
     formatNombre(u) {
       if (!u) return '';
       const np = u.nombre || '';
@@ -878,8 +1030,20 @@ export default {
     },
   },
   watch: {
+    clubs: {
+      handler(newClubs) {
+        // loadAsistenciasPorClubs removido
+      },
+      deep: true,
+    },
     clubSeleccionado() {
       this.loadAsistencias();
+    },
+    searchQuery(val) {
+      if (!val) {
+        // borrar detalle cuando se limpia el texto
+        this.selectedStudent = null;
+      }
     },
   },
   async mounted() {
@@ -1195,4 +1359,11 @@ export default {
     position: static;
   }
 }
+
+/* global table header centering and row name vertical centering */
+th { text-align: center; vertical-align: middle; }
+.table tbody td:first-child { vertical-align: middle; }
+
+/* heading titles across component */
+h4, h5, h6 { text-align: center; font-weight: bold; }
 </style>

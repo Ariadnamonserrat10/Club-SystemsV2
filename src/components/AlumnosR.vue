@@ -138,7 +138,7 @@
 </template>
 
 <script>
-import { createAlumno, updateAlumno } from '../services/api';
+import { createAlumno, updateAlumno, deleteAlumno } from '../services/api';
 
 export default {
   name: 'AlumnosR',
@@ -187,6 +187,17 @@ export default {
         const id_club = this.form.clubId ? Number(this.form.clubId) : null;
         const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === this.form.carrera) : null;
         const carrera_id = carObj && carObj.id ? carObj.id : null;
+        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.id == this.form.clubId) : null;
+        
+        // Verificar cupo disponible
+        if (clubObj) {
+          const cupoOcupado = clubObj.cupo_ocupado || 0;
+          const cupoLimite = clubObj.cupo_limite || 0;
+          if (cupoOcupado >= cupoLimite) {
+            return this.showError('No hay cupo disponible en este club');
+          }
+        }
+
         const payload = {
           nombre: this.form.nombre,
           apellidoP: this.form.apellidoP,
@@ -212,6 +223,7 @@ export default {
           club: clubName,
         }, 'Usuario Oficina');
         this.$emit('request-reload-alumnos');
+        this.$emit('request-reload-clubs');
         this.showAddModal = false;
         this.form = { nombre: '', apellidoP: '', apellidoM: '', carrera: '', semestre: '', control: '', telefono: '', club: '', clubId: '' };
         this.showToast('Alumno registrado en BD');
@@ -225,7 +237,7 @@ export default {
     startEdit(index) {
       this.editingIndex = index;
       const a = this.alumnos[index];
-      this.editForm = { ...a };
+      this.editForm = { ...a, originalClubId: a.clubId || a.id_club };
       // inicializar clubId a partir del nombre actual
       if (a && a.club && Array.isArray(this.clubs)) {
         const found = this.clubs.find(c => c.nombre === a.club);
@@ -248,6 +260,8 @@ export default {
         const id_club = this.editForm.clubId ? Number(this.editForm.clubId) : null;
         const carObj = Array.isArray(this.carreras) ? this.carreras.find(c => c.nombre === this.editForm.carrera) : null;
         const carrera_id = carObj && carObj.id ? carObj.id : null;
+        const clubObj = Array.isArray(this.clubs) ? this.clubs.find(c => c.id == this.editForm.clubId) : null;
+        
         const payload = {
           nombre: this.editForm.nombre,
           apellidoP: this.editForm.apellidoP,
@@ -262,6 +276,7 @@ export default {
         const clubName = (Array.isArray(this.clubs) && id_club) ? (this.clubs.find(c => Number(c.id) === id_club)?.nombre || this.editForm.club) : this.editForm.club;
         this.$emit('update-alumno', { index: this.editingIndex, alumno: { ...this.editForm, club: clubName } }, 'Usuario Oficina');
         this.$emit('request-reload-alumnos');
+        this.$emit('request-reload-clubs');
         this.showEditModal = false;
         this.showToast('Alumno actualizado en BD');
       } catch (e) {
@@ -275,9 +290,23 @@ export default {
       this.pendingDeleteIndex = index;
       this.showDeleteModal = true;
     },
-    deleteConfirmed() {
-      this.$emit('delete-alumno', this.pendingDeleteIndex, 'Usuario Oficina');
-      this.showDeleteModal = false;
+    async deleteConfirmed() {
+      const alumno = this.alumnos[this.pendingDeleteIndex];
+      if (!alumno || !alumno.id) {
+        this.showError('Alumno sin ID para eliminar');
+        this.showDeleteModal = false;
+        return;
+      }
+      try {
+        await deleteAlumno(alumno.id);
+        this.$emit('delete-alumno', this.pendingDeleteIndex, 'Usuario Oficina');
+        this.$emit('request-reload-alumnos');
+        this.$emit('request-reload-clubs');
+        this.showDeleteModal = false;
+        this.showToast('Alumno eliminado de BD');
+      } catch (e) {
+        this.showError(e.message || 'Error al eliminar alumno');
+      }
     }
   }
 };

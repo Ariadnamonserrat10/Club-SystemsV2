@@ -7,3 +7,7 @@
 [19-Feb-2026 19:54:30 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 170
 [19-Feb-2026 19:54:31 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 170
 [19-Feb-2026 19:54:31 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 170
+[21-Feb-2026 21:12:54 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 152
+[21-Feb-2026 21:49:45 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 152
+[21-Feb-2026 21:49:57 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 152
+[21-Feb-2026 21:54:23 Europe/Berlin] PHP Warning:  Undefined property: mysqli::$in_transaction in C:\Users\osita\OneDrive\Escritorio\Club-SystemsV2\Backend\AlumnosPendientes.php on line 152
