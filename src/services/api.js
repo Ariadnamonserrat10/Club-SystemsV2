@@ -102,6 +102,19 @@ export async function getAsistenciasPorClub(clubId) {
   return data.data || { fechas: [], asistencias: {}, alumnos: [] };
 }
 
+
+// Reinscripciones (batch)
+export async function batchReinscripciones(payload) {
+  const res = await fetch('/api/reinscripciones.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Error en reinscripciones');
+  return data;
+}
+
 export async function crearFechaAsistencias({ club_id, fecha, registros }) {
   const res = await fetch(ASISTENCIAS_BASE, {
     method: 'POST',

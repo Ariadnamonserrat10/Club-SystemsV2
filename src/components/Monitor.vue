@@ -635,7 +635,9 @@ export default {
             return this.mostrarMensaje('Cada criterio debe ser un valor entre 1 y 5.', 'alert-warning');
           }
         }
-        // Valores numéricos generales (0-4 según restricción de BD)
+        // Valores numéricos en UI: 1-5. La BD existente tiene una restricción histórica
+        // que espera valores en 0-4 (por eso restaremos 1 al enviar). Conservamos
+        // validación 1-5 para la experiencia del monitor.
         payload.valor_numerico = parseInt(payload.valor_numerico, 10);
         payload.nivel_desempeno = parseInt(payload.nivel_desempeno, 10);
         if (isNaN(payload.valor_numerico) || payload.valor_numerico < 1 || payload.valor_numerico > 5) {
@@ -647,7 +649,13 @@ export default {
         // Asegurar observaciones no sea null
         payload.observaciones = payload.observaciones || '';
 
-        const res = await saveEvaluacion(payload);
+        // Ajustar al rango de la BD: 0-4
+        const sendPayload = Object.assign({}, payload, {
+          valor_numerico: payload.valor_numerico - 1,
+          nivel_desempeno: payload.nivel_desempeno - 1
+        });
+
+        const res = await saveEvaluacion(sendPayload);
         if (res.status === 'success') {
           this.mostrarMensaje('Evaluación guardada exitosamente', 'alert-success');
           this.showEvalModal = false;
