@@ -2,7 +2,6 @@
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 header('Content-Type: application/json; charset=utf-8');
-header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -84,8 +83,8 @@ try {
       exit;
     }
     
-    // Usar call_user_func_array para evitar problemas con spread operator
-    call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $alumnoIds));
+    // Usar spread operator para bind_param (PHP 5.6+)
+    $stmt->bind_param($types, ...$alumnoIds);
     
     if (!$stmt->execute()) {
       error_log("Error ejecutando SELECT asistencias: " . $stmt->error);
@@ -149,14 +148,8 @@ try {
       $types = str_repeat('i', count($ids)) . 'i';
       $stmtV = $conexion->prepare("SELECT id FROM alumnos WHERE id IN ($place) AND id_club = ?");
       
-      // Preparar los parámetros para bind_param
-      $params = array_merge($ids, [$clubId]);
-      
-      // Usar call_user_func_array para evitar el error de spread operator
-      call_user_func_array(
-        [$stmtV, 'bind_param'],
-        array_merge([$types], $params)
-      );
+      // Usar spread operator (PHP 5.6+)
+      $stmtV->bind_param($types, ...$ids, ...[$clubId]);
       
       $stmtV->execute();
       $resV = $stmtV->get_result();

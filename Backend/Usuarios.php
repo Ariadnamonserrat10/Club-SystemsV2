@@ -46,7 +46,10 @@ try {
     } else {
       $sql = 'SELECT id, nombre, apellidoP, apellidoM, usuario, tipo, numeroControl, telefono, carrera_id, semestre_id, club_asignado, foto FROM usuarios ORDER BY tipo ASC, apellidoP ASC, apellidoM ASC, nombre ASC';
       if ($res = $conexion->query($sql)) {
-        while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+        while ($row = $res->fetch_assoc()) { 
+          $row['id'] = (int)$row['id'];
+          $rows[] = $row; 
+        }
       }
       echo json_encode(['status' => 'success', 'data' => $rows]);
       exit;

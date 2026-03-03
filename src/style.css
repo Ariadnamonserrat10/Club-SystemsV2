@@ -13,6 +13,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Global table header centering for the app */
+th { text-align: center; vertical-align: middle; }
+
+/* Section titles centered and bold */
+h1, h2, h3, h4, h5, h6 { text-align: center; font-weight: 700; }
+
+/* Vertical center first column (commonly photos/names) in tables */
+table tbody td:first-child { vertical-align: middle; }
 a {
   font-weight: 500;
   color: #646cff;

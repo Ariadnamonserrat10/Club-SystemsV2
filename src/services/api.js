@@ -1,4 +1,5 @@
 // src/services/api.js
+import axios from 'axios';
 // Servicio simple para consumir el backend PHP de Clubs y Alumnos
 
 const CLUBS_BASE = '/api/clubs.php';
@@ -7,6 +8,7 @@ const CARRERAS_BASE = '/api/carreras.php';
 const ASISTENCIAS_BASE = '/api/asistencias.php';
 const USUARIOS_BASE = '/api/Usuarios.php';
 const UPLOAD_BASE = '/api/upload.php';
+const ALUMNOS_PENDIENTES_BASE = '/api/AlumnosPendientes.php';
 
 async function toJson(res) {
   const text = await res.text();
@@ -247,6 +249,48 @@ export async function deleteAlumno(id) {
   return data;
 }
 
+// Alumnos Pendientes
+export async function getAlumnosPendientes() {
+  try {
+    const response = await axios.get(ALUMNOS_PENDIENTES_BASE);
+    return response.data.data || [];
+  } catch (e) {
+    const errorMsg = e.response?.data?.error || e.message || 'Error al obtener alumnos pendientes';
+    throw new Error(errorMsg);
+  }
+}
+
+export async function saveAlumnosPendientes(students) {
+  const res = await fetch(ALUMNOS_PENDIENTES_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(students),
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Error al guardar alumnos pendientes');
+  return data;
+}
+
+export async function updateEstatusPendiente(id, payload) {
+  const url = `${ALUMNOS_PENDIENTES_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Error al actualizar estado');
+  return data;
+}
+
+export async function deleteAlumnoPendiente(id) {
+  const url = `${ALUMNOS_PENDIENTES_BASE}?id=${encodeURIComponent(id)}`;
+  const res = await fetch(url, { method: 'DELETE' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || data?.error || 'Error al eliminar registro');
+  return data;
+}
+
 // Auditoría
 const AUDITORIA_BASE = '/api/auditoria.php';
 
@@ -293,4 +337,56 @@ export async function getEvaluatedStudents(clubName) {
   const data = await toJson(res);
   if (data.status === 'error') throw new Error(data.message || 'Error en el servidor');
   return data.data; // array
+}
+
+// Asignación de Cargos
+const ASIGNACION_CARGOS_BASE = '/api/asignacion_cargos.php';
+const CONFIG_BASE = '/api/configuracion.php';
+const FIRMAS_BASE = '/api/obtener_firmas.php';
+
+export async function getAsignacionCargos() {
+  const res = await fetch(ASIGNACION_CARGOS_BASE, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener asignaciones de cargos');
+  return data.data || [];
+}
+
+export async function asignarCargo(cargo, idUsuario, tituloCargo = null) {
+  const payload = { cargo, id_usuario: idUsuario };
+  if (tituloCargo !== null) payload.titulo_cargo = tituloCargo;
+
+  const res = await fetch(ASIGNACION_CARGOS_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al asignar cargo');
+  return data;
+}
+
+export async function getConfig(clave) {
+  const url = clave ? `${CONFIG_BASE}?clave=${encodeURIComponent(clave)}` : CONFIG_BASE;
+  const res = await fetch(url, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener configuración');
+  return data.data;
+}
+
+export async function saveConfig(clave, valor) {
+  const res = await fetch(CONFIG_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clave, valor })
+  });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al guardar configuración');
+  return data;
+}
+
+export async function getFirmas() {
+  const res = await fetch(FIRMAS_BASE, { method: 'GET' });
+  const data = await toJson(res);
+  if (!res.ok) throw new Error(data?.message || 'Error al obtener firmas');
+  return data.data || {};
 }

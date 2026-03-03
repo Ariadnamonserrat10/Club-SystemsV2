@@ -185,18 +185,18 @@
                 <label class="form-label"><strong>Valor numérico de la actividad Cultural y/o Deportiva:</strong></label>
                 <select v-model.number="evalForm.valor_numerico" class="form-select">
                   <option disabled value="">Seleccione</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
+                  <option value="1">1 (Insuficiente)</option>
+                  <option value="2">2 (Suficiente)</option>
+                  <option value="3">3 (Bueno)</option>
+                  <option value="4">4 (Notable)</option>
+                  <option value="5">5 (Excelente)</option>
                 </select>
               </div>
               <div class="col-md-6">
                 <label class="form-label"><strong>Nivel de desempeño alcanzado de la actividad Cultural y/o Deportiva:</strong></label>
                  <select v-model.number="evalForm.nivel_desempeno" class="form-select">
                   <option disabled value="">Seleccione</option>
-                  <option value="1">1 (Insuficiente)</option>
+                   <option value="1">1 (Insuficiente)</option>
                   <option value="2">2 (Suficiente)</option>
                   <option value="3">3 (Bueno)</option>
                   <option value="4">4 (Notable)</option>
@@ -635,7 +635,7 @@ export default {
             return this.mostrarMensaje('Cada criterio debe ser un valor entre 1 y 5.', 'alert-warning');
           }
         }
-        // Valores numéricos generales
+        // Valores numéricos generales (0-4 según restricción de BD)
         payload.valor_numerico = parseInt(payload.valor_numerico, 10);
         payload.nivel_desempeno = parseInt(payload.nivel_desempeno, 10);
         if (isNaN(payload.valor_numerico) || payload.valor_numerico < 1 || payload.valor_numerico > 5) {
