@@ -8,7 +8,7 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -100,6 +100,20 @@ try {
       exit;
     }
 
+    // Validar cupo disponible si se asigna club
+    if ($id_club !== null) {
+      $stmtCupo = $conexion->prepare('SELECT cupo_limite, (SELECT COUNT(*) FROM alumnos WHERE id_club = ?) AS cupo_ocupado FROM clubs WHERE id = ?');
+      $stmtCupo->bind_param('ii', $id_club, $id_club);
+      $stmtCupo->execute();
+      $resCupo = $stmtCupo->get_result();
+      $cupoData = $resCupo->fetch_assoc();
+      if ($cupoData && $cupoData['cupo_ocupado'] >= $cupoData['cupo_limite']) {
+        http_response_code(409);
+        echo json_encode(['error' => 'Sin cupo', 'message' => 'No hay cupo disponible en este club']);
+        exit;
+      }
+    }
+
     // Insert
     $sql = 'INSERT INTO alumnos (nombre, apellidoP, apellidoM, numeroControl, telefono, carrera_id, semestre_id, id_club) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
     $stmt = $conexion->prepare($sql);
@@ -176,6 +190,20 @@ try {
     if ($numeroControl === '' || !preg_match('/^\d{8}$/', $numeroControl)) { $errors[] = 'numeroControl debe tener 8 dígitos'; }
     if ($telefono !== '' && $telefono !== null && !preg_match('/^\d{7,15}$/', $telefono)) { $errors[] = 'telefono debe ser numérico (7-15 dígitos) o vacío'; }
 
+    // Validar cupo disponible si se cambia el club
+    if ($id_club !== $cur['id_club'] && $id_club !== null) {
+      $stmtCupo = $conexion->prepare('SELECT cupo_limite, (SELECT COUNT(*) FROM alumnos WHERE id_club = ?) AS cupo_ocupado FROM clubs WHERE id = ?');
+      $stmtCupo->bind_param('ii', $id_club, $id_club);
+      $stmtCupo->execute();
+      $resCupo = $stmtCupo->get_result();
+      $cupoData = $resCupo->fetch_assoc();
+      if ($cupoData && $cupoData['cupo_ocupado'] >= $cupoData['cupo_limite']) {
+        http_response_code(409);
+        echo json_encode(['error' => 'Sin cupo', 'message' => 'No hay cupo disponible en este club']);
+        exit;
+      }
+    }
+
     if (!empty($errors)) {
       http_response_code(422);
       echo json_encode(['error' => 'Validación', 'details' => $errors]);
@@ -205,6 +233,38 @@ try {
     $row = $res->fetch_assoc();
 
     echo json_encode(['data' => $row]);
+    exit;
+  }
+
+  if ($method === 'DELETE') {
+    if (!isset($_GET['id']) || $_GET['id'] === '') {
+      http_response_code(400);
+      echo json_encode(['error' => 'ID requerido']);
+      exit;
+    }
+    $id = (int)$_GET['id'];
+
+    // Verificar que existe
+    $stmtCheck = $conexion->prepare('SELECT id FROM alumnos WHERE id = ?');
+    $stmtCheck->bind_param('i', $id);
+    $stmtCheck->execute();
+    $stmtCheck->store_result();
+    if ($stmtCheck->num_rows === 0) {
+      http_response_code(404);
+      echo json_encode(['error' => 'Alumno no encontrado']);
+      exit;
+    }
+
+    // Eliminar
+    $stmtDel = $conexion->prepare('DELETE FROM alumnos WHERE id = ?');
+    $stmtDel->bind_param('i', $id);
+    if (!$stmtDel->execute()) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Error al eliminar', 'message' => $stmtDel->error]);
+      exit;
+    }
+
+    echo json_encode(['message' => 'Alumno eliminado']);
     exit;
   }
 
