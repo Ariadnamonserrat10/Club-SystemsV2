@@ -91,6 +91,16 @@
             >
           </li>
 
+      
+          <li class="nav-item">
+            <a
+              href="#"
+              class="nav-link text-white"
+              @click.prevent="setView('Reinscripciones')"
+              >Reinscripciones</a
+            >
+          </li>
+
         </ul>
       </div>
 
@@ -111,6 +121,7 @@
         :fechas="fechas"
         :auditoria="auditoria"
         :carreras="carreras"
+        :club-id="currentClubIdForChild"
         @add-club="handleAddClub"
         @edit-club="handleEditClub"
         @delete-club="handleDeleteClub"
@@ -125,6 +136,10 @@
         @request-reload-alumnos="loadAlumnos"
         @request-reload-clubs="loadClubs"
         @refresh-carreras="loadCarreras"
+        @notify="showChildNotify"
+        @notify-error="showChildError"
+        @open-club="openClubView"
+        @back="setView('Reinscripciones')"
       />
     </div>
 
@@ -157,6 +172,8 @@ import Constancias from "../components/Constancias.vue";
 import Auditoria from "../components/Auditoria.vue";
 import Listas from "../components/Listas.vue";
 import CarrerasR from "../components/CarrerasR.vue";
+import Reinscripciones from "../components/Reinscripciones.vue";
+import ReinscripcionesClub from "../components/ReinscripcionesClub.vue";
 import { getClubs, getAlumnos, createClub, updateClub, deleteClub, getMonitoresPorClub, getAllMonitoresWithClubs, registrarAuditoria, getCarreras, getUsuarios } from "../services/api";
 import axios from "axios";
 
@@ -171,6 +188,8 @@ export default {
     Auditoria,
     Listas,
     CarrerasR,
+    Reinscripciones,
+    ReinscripcionesClub,
   },
   data() {
     return {
@@ -182,6 +201,7 @@ export default {
        foto: "https://cdn-icons-png.flaticon.com/512/847/847969.png", // fallback
      },
       currentView: "ClubsR",
+      currentClubIdForChild: null,
       clubs: [], // se cargará desde API más adelante
 
       carreras: [],
@@ -225,6 +245,10 @@ export default {
     };
   },
   methods: {
+    openClubView(clubId) {
+      this.currentClubIdForChild = Number(clubId);
+      this.setView('ReinscripcionesClub');
+    },
    async cargarUsuarioActual() {
      try {
        const usuarioId = sessionStorage.getItem("usuarioId");
@@ -683,6 +707,14 @@ export default {
       } catch (e) {
         console.error("Error:", msg);
       }
+    },
+    showChildNotify(payload) {
+      const msg = (payload && payload.message) ? payload.message : String(payload || '');
+      this.showToast(msg);
+    },
+    showChildError(payload) {
+      const msg = (payload && payload.message) ? payload.message : String(payload || '');
+      this.showError(msg);
     },
   },
   async mounted() {
