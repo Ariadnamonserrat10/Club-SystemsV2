@@ -91,6 +91,16 @@
             >
           </li>
 
+      
+          <li class="nav-item">
+            <a
+              href="#"
+              class="nav-link text-white"
+              @click.prevent="setView('Reinscripciones')"
+              >Reinscripciones</a
+            >
+          </li>
+
         </ul>
       </div>
 

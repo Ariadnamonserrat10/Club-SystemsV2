@@ -168,14 +168,14 @@ export default {
           password: this.password
         });
 
-        // En desarrollo usamos el proxy de Vite (/api -> http://127.0.0.1:8000),
-        // en producción/electron usamos el servidor PHP directo.
-        const url = import.meta.env.DEV ? "/api/Login.php" : "http://127.0.0.1:8000/Login.php";
-        const response = await axios.post(url, {
-          usuario: this.usuario,
-          password: this.password,
-          userType: this.selectedUserType
-        });
+        const response = await axios.post(
+          "/api/Login.php",
+          {
+            usuario: this.usuario,
+            password: this.password,
+            userType: this.selectedUserType
+          }
+        );
 
         console.log("Respuesta del servidor:", response.data);
 

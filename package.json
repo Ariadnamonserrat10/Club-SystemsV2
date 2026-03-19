@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\" \"npm run dev:php\"",
     "dev:vite": "vite",
-    "dev:php": "\"C:\\xampp\\php\\php.exe\" -S 127.0.0.1:8000 -t Backend",
+    "dev:php": "C:\\xampp\\php\\php.exe -S 127.0.0.1:8000",
     "dev:electron": "cross-env NODE_ENV=development wait-on http://localhost:5173 && electron electron/main.js",
     "build": "vite build && electron-builder"
   },

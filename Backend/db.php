@@ -28,9 +28,12 @@ try {
     $conexion->set_charset("utf8mb4");
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-    exit;
+    header('Content-Type: application/json; charset=UTF-8');
+    die(json_encode(["error" => $e->getMessage()]));
 }
+
+// Alias opcional para compatibilidad
+$conn = $conexion;
 
 // Función no intrusiva para exponer mysqli de forma estándar
 if (!function_exists('getMysqli')) {
@@ -39,6 +42,3 @@ if (!function_exists('getMysqli')) {
         return $conexion instanceof mysqli ? $conexion : null;
     }
 }
-
-// Alias opcional para compatibilidad
-$conn = $conexion;
