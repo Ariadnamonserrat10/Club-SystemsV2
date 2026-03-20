@@ -23,15 +23,12 @@ if (!file_exists($dbFile)) {
   echo json_encode(['error' => 'No se encontró Backend/db.php']);
   exit;
 }
-require_once $dbFile; // expone $conexion (mysqli)
+require_once $dbFile; // expone $conexion (PDO o mysqli)
 
-if (!isset($conexion) || !($conexion instanceof mysqli)) {
-  if (function_exists('getMysqli') && getMysqli() instanceof mysqli) {
-    $conexion = getMysqli();
-  }
-}
+$isPDO = $conexion instanceof PDO;
+$isMysqli = $conexion instanceof mysqli;
 
-if (!isset($conexion) || !($conexion instanceof mysqli)) {
+if (!$isPDO && !$isMysqli) {
   http_response_code(500);
   echo json_encode(['error' => 'No hay conexión a la base de datos']);
   exit;

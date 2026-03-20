@@ -2,11 +2,14 @@
   "name": "app-vue-electron",
   "private": true,
   "version": "0.0.0",
+  "description": "Sistema de gestión de clubs estudiantiles",
+  "author": "Tu Nombre",
+  "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\" \"npm run dev:php\"",
     "dev:vite": "vite",
-    "dev:php": "C:\\xampp\\php\\php.exe -S 127.0.0.1:8000",
+    "dev:php": "\"C:\\xampp\\php\\php.exe\" -S 127.0.0.1:8000 -t Backend",
     "dev:electron": "cross-env NODE_ENV=development wait-on http://localhost:5173 && electron electron/main.js",
     "build": "vite build && electron-builder"
   },
@@ -28,5 +31,23 @@
     "electron-builder": "^26.0.12",
     "vite": "^7.1.7",
     "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.club-systems.app",
+    "productName": "Club Systems",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "Backend/**/*",
+      "database/**/*",
+      "php/**/*"   
+    ],
+    "win": {
+      "icon": "src/Img/lo.ico",
+      "target": "nsis"
+    }
   }
 }

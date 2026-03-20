@@ -2,13 +2,29 @@
 import axios from 'axios';
 // Servicio simple para consumir el backend PHP de Clubs y Alumnos
 
-const CLUBS_BASE = '/api/clubs.php';
-const ALUMNOS_BASE = '/api/Alumnos.php';
-const CARRERAS_BASE = '/api/carreras.php';
-const ASISTENCIAS_BASE = '/api/asistencias.php';
-const USUARIOS_BASE = '/api/Usuarios.php';
-const UPLOAD_BASE = '/api/upload.php';
-const ALUMNOS_PENDIENTES_BASE = '/api/AlumnosPendientes.php';
+// En desarrollo usamos el proxy de Vite (ruta /api -> http://127.0.0.1:8000).
+// En producción/electron usamos directamente el servidor PHP.
+const BASE_URL = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000');
+
+function apiPath(path) {
+  // En desarrollo, usamos /api/... para que Vite haga proxy.
+  // En producción, quitamos /api y usamos BASE_URL directo.
+  if (import.meta.env.DEV) {
+    return path; // Ya incluye /api/
+  } else {
+    return BASE_URL + path.replace(/^\/api/, '');
+  }
+}
+
+const CLUBS_BASE = apiPath('/api/clubs.php');
+const ALUMNOS_BASE = apiPath('/api/Alumnos.php');
+const CARRERAS_BASE = apiPath('/api/carreras.php');
+const ASISTENCIAS_BASE = apiPath('/api/asistencias.php');
+const USUARIOS_BASE = apiPath('/api/Usuarios.php');
+const UPLOAD_BASE = apiPath('/api/upload.php');
+const ALUMNOS_PENDIENTES_BASE = apiPath('/api/AlumnosPendientes.php');
 
 async function toJson(res) {
   const text = await res.text();
@@ -105,7 +121,7 @@ export async function getAsistenciasPorClub(clubId) {
 
 // Reinscripciones (batch)
 export async function batchReinscripciones(payload) {
-  const res = await fetch('/api/reinscripciones.php', {
+  const res = await fetch(apiPath('/api/reinscripciones.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -176,7 +192,7 @@ export async function uploadFoto(file) {
 
 // Monitores por Club
 export async function getMonitoresPorClub(clubId) {
-  const url = `/api/getMonitores.php?club_id=${encodeURIComponent(clubId)}`;
+  const url = `${apiPath('/api/getMonitores.php')}?club_id=${encodeURIComponent(clubId)}`;
   const res = await fetch(url, { method: 'GET' });
   const data = await toJson(res);
   if (!res.ok) {
@@ -188,7 +204,7 @@ export async function getMonitoresPorClub(clubId) {
 
 // Obtener todos los monitores con sus clubs asignados
 export async function getAllMonitoresWithClubs() {
-  const res = await fetch(`/api/Usuarios.php`, { method: 'GET' });
+  const res = await fetch(apiPath('/api/Usuarios.php'), { method: 'GET' });
   const data = await toJson(res);
   if (!res.ok) {
     console.error('Error fetching all usuarios:', res.status, data);
@@ -200,7 +216,7 @@ export async function getAllMonitoresWithClubs() {
 
 // Asignar monitor a un club
 export async function asignarMonitorAClub(monitorId, clubId) {
-  const url = `/api/asignarMonitor.php`;
+  const url = apiPath('/api/asignarMonitor.php');
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -305,7 +321,7 @@ export async function deleteAlumnoPendiente(id) {
 }
 
 // Auditoría
-const AUDITORIA_BASE = '/api/auditoria.php';
+const AUDITORIA_BASE = apiPath('/api/auditoria.php');
 
 export async function getAuditoria() {
   const res = await fetch(AUDITORIA_BASE, { method: 'GET' });
@@ -326,7 +342,7 @@ export async function registrarAuditoria({ id_usuario, accion, descripcion }) {
 }
 // Evaluación
 export async function saveEvaluacion(payload) {
-  const res = await fetch('/api/evaluacion.php', {
+  const res = await fetch(apiPath('/api/evaluacion.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -346,16 +362,16 @@ export async function getEvaluacion(params) {
 
 export async function getEvaluatedStudents(clubName) {
   const q = new URLSearchParams({ type: 'list', nombre_club: clubName }).toString();
-  const res = await fetch('/api/evaluacion.php?' + q);
+  const res = await fetch(`${apiPath('/api/evaluacion.php')}?${q}`);
   const data = await toJson(res);
   if (data.status === 'error') throw new Error(data.message || 'Error en el servidor');
   return data.data; // array
 }
 
 // Asignación de Cargos
-const ASIGNACION_CARGOS_BASE = '/api/asignacion_cargos.php';
-const CONFIG_BASE = '/api/configuracion.php';
-const FIRMAS_BASE = '/api/obtener_firmas.php';
+const ASIGNACION_CARGOS_BASE = apiPath('/api/asignacion_cargos.php');
+const CONFIG_BASE = apiPath('/api/configuracion.php');
+const FIRMAS_BASE = apiPath('/api/obtener_firmas.php');
 
 export async function getAsignacionCargos() {
   const res = await fetch(ASIGNACION_CARGOS_BASE, { method: 'GET' });
