@@ -42,7 +42,6 @@
       "dist/**/*",
       "electron/**/*",
       "Backend/**/*",
-      "database/**/*",
       "php/**/*"   
     ],
     "win": {
